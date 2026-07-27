@@ -717,28 +717,27 @@ function getQAS(){
   var u = (window.getCurrentUser && window.getCurrentUser()) || "";
   // 内置演示种子仅属于「诗歌」账号，不推送给任何新登录账号（包括本机第一个登录者/主人）
   var list = (u === "诗歌") ? OWNER_QA_SEED.slice() : [];
-  // 动态合并白天的聊天答疑记录（由助手写入并自动上传到 Gist 的 user:诗歌:chatLog_<日期>）
-  if(u === "诗歌"){
-    try{
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        const m = k && k.match(/^user:诗歌:chatLog_(\d{4}-\d{2}-\d{2})$/);
-        if(m){
-          const day = m[1];
-          const arr = JSON.parse(localStorage.getItem(k) || "[]") || [];
-          if(Array.isArray(arr) && arr.length){
-            const items = arr.map(x => ({
-              q: x.q || x.kp || "(未命名题目)",
-              kp: x.kp || "",
-              ans: x.ans || x.a || "",
-              diag: x.diag || (x.subject ? ("来源：" + x.subject) : "聊天答疑")
-            }));
-            list.push({ day: day + "（聊天答疑）", items: items });
-          }
+  // 动态合并白天的聊天答疑记录（由助手写入并自动上传到 Gist 的 user:<昵称>:chatLog_<日期>），所有账号生效
+  try{
+    const re = new RegExp('^user:' + u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':chatLog_(\\d{4}-\\d{2}-\\d{2})$');
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      const m = k && k.match(re);
+      if(m){
+        const day = m[1];
+        const arr = JSON.parse(localStorage.getItem(k) || "[]") || [];
+        if(Array.isArray(arr) && arr.length){
+          const items = arr.map(x => ({
+            q: x.q || x.kp || "(未命名题目)",
+            kp: x.kp || "",
+            ans: x.ans || x.a || "",
+            diag: x.diag || (x.subject ? ("来源：" + x.subject) : "聊天答疑")
+          }));
+          list.push({ day: day + "（聊天答疑）", items: items });
         }
       }
-    }catch(e){}
-  }
+    }
+  }catch(e){}
   return list;
 }
 
@@ -834,13 +833,13 @@ const OWNER_DAILY_SEED = {
 function getDailyData(){
   var u = (window.getCurrentUser && window.getCurrentUser()) || "";
   // 内置演示种子仅属于「诗歌」账号，不推送给任何新登录账号（包括本机第一个登录者/主人）
-  if(u !== "诗歌") return {};
-  var seed = JSON.parse(JSON.stringify(OWNER_DAILY_SEED));
-  // 动态合并白天的聊天答疑记录（user:诗歌:chatLog_<日期>），作为「今日聊天答疑」section 追加
+  var seed = (u === "诗歌") ? JSON.parse(JSON.stringify(OWNER_DAILY_SEED)) : {};
+  // 动态合并白天的聊天答疑记录（user:<昵称>:chatLog_<日期>），作为「今日聊天答疑」section 追加，所有账号生效
   try{
+    const re = new RegExp('^user:' + u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':chatLog_(\\d{4}-\\d{2}-\\d{2})$');
     for(let i=0;i<localStorage.length;i++){
       const k = localStorage.key(i);
-      const m = k && k.match(/^user:诗歌:chatLog_(\d{4}-\d{2}-\d{2})$/);
+      const m = k && k.match(re);
       if(m){
         const day = m[1];
         const arr = JSON.parse(localStorage.getItem(k) || "[]") || [];
@@ -1200,10 +1199,51 @@ function cleanBankDuplicates(){
   refreshGraphAndOverview();
   alert(`已清理 ${before-after} 道重复题目，剩余 ${after} 道。`);
 }
+function getChatLogMathTasks(){
+  // 合并「助理答疑」中属于数学的题（user:<昵称>:chatLog_<日期>），让题库/薄弱点也包含助理发的题
+  const u = (window.getCurrentUser && window.getCurrentUser()) || "";
+  if(!u) return [];
+  const out = [];
+  try{
+    const re = new RegExp('^user:' + u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ':chatLog_(\\d{4}-\\d{2}-\\d{2})$');
+    const seen = new Set();
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      const m = k && k.match(re);
+      if(!m) continue;
+      const day = m[1];
+      let arr = [];
+      try{ arr = JSON.parse(localStorage.getItem(k) || "[]") || []; }catch(e){ arr=[]; }
+      if(!Array.isArray(arr)) continue;
+      arr.forEach((x, idx) => {
+        const subj = (x.subject||'').trim();
+        if(subj && subj !== '数学') return; // 只取数学；空 subject 兼容旧数据
+        const q = x.q || x.kp || "(未命名题目)";
+        const key = day + '|' + (x.kp||'') + '|' + q;
+        if(seen.has(key)) return; seen.add(key);
+        out.push({
+          no: 'chat-' + day + '-' + idx,
+          kp: x.kp || '助理答疑',
+          q: q,
+          a: x.ans || x.a || '',
+          src: '💬助理答疑',
+          from: '助理答疑',
+          weak: x.weak === true,
+          res: x.weak ? '❌' : '✅',
+          auto: false,
+          date: day,
+          chatTime: x.time || ''
+        });
+      });
+    }
+  }catch(e){}
+  return out;
+}
 function getAllTasks() {
   try {
     const extra = JSON.parse(uStorage.getItem("mathAutoBank_v1") || "[]");
-    return dedupMathBank(getTasks().concat(Array.isArray(extra) ? extra : []));
+    const chat = getChatLogMathTasks();
+    return dedupMathBank(getTasks().concat(Array.isArray(extra) ? extra : [], chat));
   } catch (e) { return getTasks(); }
 }
 function findWeakByTopicKnowledge(topic, knowledge){
