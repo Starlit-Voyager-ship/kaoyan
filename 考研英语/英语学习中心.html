@@ -1671,7 +1671,7 @@ function checkAnswer(input, meaning, word) {
 /* ================= 渲染 ================= */
 /* 文章高亮：搭配标蓝优先，生词标红（跳过与蓝重叠冲突），同源变形一并高亮 */
 function escapeRegex(s) { return s.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&"); }
-function wordRegexSource(w) { return "\\b" + escapeRegex(w) + "(?=[A-Za-z]|\\b)"; }
+function wordRegexSource(w) { return "\\b" + escapeRegex(w) + "\\b"; }
 function collocRegex(phrase) {
   const tokens = phrase.split(/\s+/).map(t => t.trim());
   const between = "(?:\\s+[\\w'-]+)*?\\s*";
@@ -1993,22 +1993,25 @@ function toLemma(word) {
   return w;
 }
 
-function renderClickablePara(text, spans, lookups, paraIdx){
+function renderClickablePara(text, spans, lookups, paraIdx, hlList){
   spans.sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
   let out="", cur=0;
   const a = getArticles()[currentArticleIdx];
   const list = (lookups || []).filter(x => x.fromArticle && x.articleId === (a && a.id));
+  const hlMap = new Map((hlList || []).map(h => [String(h.word || h.phrase || "").toLowerCase(), h.meaning || ""]));
   for(const [s,e,t] of spans){
     if(s<cur) continue;
     out += renderClickablePlain(text.slice(cur, s), lookups, paraIdx);
     const cls = t==="blue" ? "hl-blue" : "hl-red";
     const w = text.slice(s, e);
     const cw = cleanWordToken(w);
-    // 查 lookup：spans 内 occIdx=-1，匹配时也按 -1 或 undefined（无位置信息）匹配
-    const rec = list.find(x => x.word.toLowerCase() === cw.toLowerCase() &&
+    // 查 lookup：spans 内 occIdx=-1；若找不到，再按同段任意位置匹配（兼容该词先前以普通词 occIdx=N 被点过）
+    let rec = list.find(x => x.word.toLowerCase() === cw.toLowerCase() &&
       (x.paraIdx === undefined || x.paraIdx === paraIdx) &&
       (x.occIdx === undefined || x.occIdx === -1));
-    const cn = rec ? rec.cn : '';
+    if (!rec) rec = list.find(x => x.word.toLowerCase() === cw.toLowerCase() &&
+      (x.paraIdx === undefined || x.paraIdx === paraIdx));
+    const cn = rec ? rec.cn : (hlMap.get(cw.toLowerCase()) || '');
     out += `<span class="${cls} word-clickable" data-word="${escapeHtml(cw)}" data-para="${paraIdx}" data-occ="-1">${escapeHtml(w)}</span>` + (cn ? `<span class="word-inline-cn">（${escapeHtml(cn)}）</span>` : "");
     cur = e;
   }
@@ -2189,10 +2192,22 @@ function renderArticle(idx) {
   const highlightWords = (a.words || []).map(w => ({ word: w.word, meaning: w.meaning }));
   const highlightCollocs = (a.collocs || []).map(c => ({ phrase: c.phrase, meaning: c.meaning }));
   articleLookups.filter(x => x.type === "word").forEach(x => {
-    if (!highlightWords.some(w => w.word === x.word)) highlightWords.push({ word: x.word, meaning: x.cn, cnContext: x.cnContext });
+    const idx = highlightWords.findIndex(w => w.word === x.word);
+    if (idx < 0) {
+      highlightWords.push({ word: x.word, meaning: x.cn, cnContext: x.cnContext });
+    } else if (!highlightWords[idx].meaning && x.cn) {
+      highlightWords[idx].meaning = x.cn;
+      if (x.cnContext) highlightWords[idx].cnContext = x.cnContext;
+    }
   });
   articleLookups.filter(x => x.type === "colloc").forEach(x => {
-    if (!highlightCollocs.some(c => c.phrase === x.word)) highlightCollocs.push({ phrase: x.word, meaning: x.cn, cnContext: x.cnContext });
+    const idx = highlightCollocs.findIndex(c => c.phrase === x.word);
+    if (idx < 0) {
+      highlightCollocs.push({ phrase: x.word, meaning: x.cn, cnContext: x.cnContext });
+    } else if (!highlightCollocs[idx].meaning && x.cn) {
+      highlightCollocs[idx].meaning = x.cn;
+      if (x.cnContext) highlightCollocs[idx].cnContext = x.cnContext;
+    }
   });
   // 已点词翻译的记录 → 按段落+出现位置显示内联释义，不再全文统一
   const hasTrans = Array.isArray(a.translations) && a.translations.length === a.paragraphs.length;
@@ -2200,7 +2215,8 @@ function renderArticle(idx) {
     const cn = (hasTrans && a.translations[i]) ? a.translations[i] : "";
     const transHtml = cn ? `<div class="art-trans">${highlightCnByWords(cn, p, highlightWords.concat(highlightCollocs))}</div>` : "";
     const spans = buildSpans(p, highlightWords, highlightCollocs);
-    const paraHtml = window.__wordClickMode ? renderClickablePara(p, spans, articleLookups, i) : applySpans(p, spans);
+    const hlList = highlightWords.concat(highlightCollocs).map(h => ({ word: h.word || h.phrase, meaning: h.meaning }));
+    const paraHtml = window.__wordClickMode ? renderClickablePara(p, spans, articleLookups, i, hlList) : applySpans(p, spans);
     return `<p>${paraHtml}</p>` + transHtml;
   }).join("");
   updateWordClickButton();
