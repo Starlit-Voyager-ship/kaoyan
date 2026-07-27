@@ -314,19 +314,32 @@ function computeEngLocal(day){
   return { newWords, review, key: keyWords, wrong: wrongWords, articles };
 }
 
-// 从当前账号 localStorage 计算数学当日数据（含错题、巩固，完全隔离）
+// 从当前账号 localStorage 计算数学当日数据（含自动做题 + 助理答疑题目 + 概念咨询）
 function computeMathLocal(day){
   let bank=[]; try{ bank=JSON.parse(uStorage.getItem("mathAutoBank_v1")||"[]")||[]; }catch(e){}
   const dayItems = bank.filter(o => o.date === day);
   const correct = dayItems.filter(o=>o.res==="✅").length;
   const wrongItems = dayItems.filter(o=>o.res==="❌");
-  const wrong = wrongItems.length;
-  const groups = new Set(dayItems.map(o=>o.from||"练习")).size;
-  const topics = Array.from(new Set(dayItems.map(o=>o.kp).filter(Boolean)));
-  const wrongDetails = wrongItems.map(o=>({ topic:o.kp||"未分类考点", reason:o.note||"" }));
+
+  // 合并「助理答疑」中的数学题（user:<昵称>:chatLog_<日期>）
+  let chatMath=[], chatConcept=[];
+  try{
+    const arr = JSON.parse(uStorage.getItem("chatLog_" + day) || "[]") || [];
+    if(Array.isArray(arr)){
+      chatMath = arr.filter(x => ((x.subject||"") === "数学" || !x.subject) && x.isQuestion !== false);
+      chatConcept = arr.filter(x => ((x.subject||"") === "数学" || !x.subject) && x.isQuestion === false);
+    }
+  }catch(e){}
+  const chatWeak = chatMath.filter(x => x.weak === true);
+
+  const groups = dayItems.length + chatMath.length;
+  const wrong = wrongItems.length + chatWeak.length;
+  const topics = Array.from(new Set(dayItems.map(o=>o.kp).filter(Boolean).concat(chatMath.map(x=>x.kp).filter(Boolean))));
+  const wrongDetails = wrongItems.map(o=>({ topic:o.kp||"未分类考点", reason:o.note||"" }))
+    .concat(chatWeak.map(x=>({ topic:x.kp||"未分类考点", reason:(x.a||x.ans||"") })));
   let resolved=0, resolvedTopics=[];
   try{ const r=JSON.parse(uStorage.getItem("mathWeakResolved_v1")||"{}")||{}; const arr=Array.isArray(r[day])?r[day]:[]; resolved=arr.length; arr.forEach(x=>(x.kpTags||[]).forEach(t=>resolvedTopics.push(t))); }catch(e){}
-  return { groups: groups||(dayItems.length?1:0), correct, wrong, topics, wrongDetails, resolved, resolvedTopics: Array.from(new Set(resolvedTopics)) };
+  return { groups, correct, wrong, topics, wrongDetails, resolved, resolvedTopics: Array.from(new Set(resolvedTopics)), qa: chatMath.length, qaConcept: chatConcept.length, qaWeak: chatWeak.length };
 }
 
 function liveSummary(e,m){
@@ -751,6 +764,15 @@ function buildDailyPrompt(day, user, e, m){
     return (a.title || "未命名文章") + (wrong ? "（错题"+wrong+"道）" : "");
   }).join("、") || "无";
 
+  // 当日答疑记录
+  let chat = []; let chatSec = "";
+  try{
+    chat = JSON.parse(uStorage.getItem("chatLog_" + day) || "[]") || [];
+    if(chat.length){
+      chatSec = `\n【白天答疑】用户当天向助理提问 ${chat.length} 道（示例：${list(take(chat.map(c=>c.q||c.kp||""),5))}），相关考点：${list(take(Array.from(new Set(chat.map(c=>c.kp).filter(Boolean))),10))}`;
+    }
+  }catch(e){}
+
   return `你是一位考研学习督导「小诗/小歌」。请根据用户「${user}」在 ${day} 的学习数据，写一段 80-140 字的学习日报总结（中文），并附一句 20 字以内的鼓励语。
 
 要求：
@@ -765,9 +787,10 @@ function buildDailyPrompt(day, user, e, m){
 - 重点词（${e.key.length} 个）：${list(take(e.key, 15))}
 - 错词（${e.wrong.length} 个）：${list(take(e.wrong, 15))}
 - 精读文章（${e.articles.length} 篇）：${articlesInfo}
+${chatSec}
 
 【数学】
-- 做题 ${m.groups} 组，对 ${m.correct} 题，错 ${m.wrong} 题，正确率 ${pct}%
+- 做题 ${m.groups} 题（助理答疑 ${m.qa||0} 题 + 概念咨询 ${m.qaConcept||0} 条），对 ${m.correct} 题，错 ${m.wrong} 题（其中助理薄弱 ${m.qaWeak||0}），正确率 ${pct}%
 - 考点：${list(take(m.topics, 15))}
 - 错题：${list(take((m.wrongDetails||[]).map(w=>w.topic||"未分类考点"), 10))}
 - 今日巩固薄弱点（${m.resolved||0} 个）：${list(take(m.resolvedTopics, 10))}`;
