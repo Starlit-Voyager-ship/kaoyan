@@ -1739,6 +1739,260 @@ function updateWordClickButton(){
 }
 function cleanWordToken(w){ return (w || "").replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "").toLowerCase(); }
 
+/* 英文词归原：把 -ing / 过去式 / 过去分词 / 三单 等还原为原型 */
+function toLemma(word) {
+  const w = (word || "").toLowerCase().trim();
+  if (!w || w.length < 2) return w;
+
+  const IRREGULAR = {
+    "am":"be","is":"be","are":"be","was":"be","were":"be","been":"be","being":"be","be":"be",
+    "has":"have","had":"have","having":"have",
+    "does":"do","did":"do","done":"do","doing":"do",
+    "goes":"go","went":"go","gone":"go","going":"go",
+    "makes":"make","made":"make","making":"make",
+    "takes":"take","took":"take","taken":"take","taking":"take",
+    "comes":"come","came":"come","coming":"come",
+    "knows":"know","knew":"know","known":"know","knowing":"know",
+    "thinks":"think","thought":"think","thinking":"think",
+    "says":"say","said":"say","saying":"say",
+    "gets":"get","got":"get","gotten":"get","getting":"get",
+    "sees":"see","saw":"see","seen":"see","seeing":"see",
+    "feels":"feel","felt":"feel","feeling":"feel",
+    "finds":"find","found":"find","finding":"find",
+    "gives":"give","gave":"give","given":"give","giving":"give",
+    "tells":"tell","told":"tell","telling":"tell",
+    "becomes":"become","became":"become","becoming":"become",
+    "leaves":"leave","left":"leave","leaving":"leave",
+    "puts":"put","putting":"put",
+    "means":"mean","meant":"mean","meaning":"mean",
+    "keeps":"keep","kept":"keep","keeping":"keep",
+    "lets":"let","letting":"let",
+    "begins":"begin","began":"begin","begun":"begin","beginning":"begin",
+    "shows":"show","showed":"show","shown":"show","showing":"show",
+    "hears":"hear","heard":"hear","hearing":"hear",
+    "runs":"run","ran":"run","running":"run",
+    "brings":"bring","brought":"bring","bringing":"bring",
+    "stands":"stand","stood":"stand","standing":"stand",
+    "loses":"lose","lost":"lose","losing":"lose",
+    "pays":"pay","paid":"pay","paying":"pay",
+    "meets":"meet","met":"meet","meeting":"meet",
+    "includes":"include","included":"include","including":"include",
+    "continues":"continue","continued":"continue","continuing":"continue",
+    "settles":"settle","settled":"settle","settling":"settle",
+    "watches":"watch","watched":"watch","watching":"watch",
+    "follows":"follow","followed":"follow","following":"follow",
+    "stops":"stop","stopped":"stop","stopping":"stop",
+    "creates":"create","created":"create","creating":"create",
+    "speaks":"speak","spoke":"speak","spoken":"speak","speaking":"speak",
+    "reads":"read","reading":"read",
+    "allows":"allow","allowed":"allow","allowing":"allow",
+    "adds":"add","added":"add","adding":"add",
+    "spends":"spend","spent":"spend","spending":"spend",
+    "grows":"grow","grew":"grow","grown":"grow","growing":"grow",
+    "opens":"open","opened":"open","opening":"open",
+    "walks":"walk","walked":"walk","walking":"walk",
+    "offers":"offer","offered":"offer","offering":"offer",
+    "remembers":"remember","remembered":"remember","remembering":"remember",
+    "loves":"love","loved":"love","loving":"love",
+    "considers":"consider","considered":"consider","considering":"consider",
+    "appears":"appear","appeared":"appear","appearing":"appear",
+    "buys":"buy","bought":"buy","buying":"buy",
+    "waits":"wait","waited":"wait","waiting":"wait",
+    "serves":"serve","served":"serve","serving":"serve",
+    "dies":"die","died":"die","dying":"die",
+    "sends":"send","sent":"send","sending":"send",
+    "expects":"expect","expected":"expect","expecting":"expect",
+    "builds":"build","built":"build","building":"build",
+    "stays":"stay","stayed":"stay","staying":"stay",
+    "falls":"fall","fell":"fall","fallen":"fall","falling":"fall",
+    "cuts":"cut","cutting":"cut",
+    "reaches":"reach","reached":"reach","reaching":"reach",
+    "kills":"kill","killed":"kill","killing":"kill",
+    "remains":"remain","remained":"remain","remaining":"remain",
+    "suggests":"suggest","suggested":"suggest","suggesting":"suggest",
+    "raises":"raise","raised":"raise","raising":"raise",
+    "passes":"pass","passed":"pass","passing":"pass",
+    "sells":"sell","sold":"sell","selling":"sell",
+    "requires":"require","required":"require","requiring":"require",
+    "reports":"report","reported":"report","reporting":"report",
+    "decides":"decide","decided":"decide","deciding":"decide",
+    "pulls":"pull","pulled":"pull","pulling":"pull",
+    "expresses":"express","expressed":"express","expressing":"express",
+    "moves":"move","moved":"move","moving":"move",
+    "lives":"live","lived":"live","living":"live",
+    "believes":"believe","believed":"believe","believing":"believe",
+    "plays":"play","played":"play","playing":"play",
+    "writes":"write","wrote":"write","written":"write","writing":"write",
+    "drives":"drive","drove":"drive","driven":"drive","driving":"drive",
+    "rides":"ride","rode":"ride","ridden":"ride","riding":"ride",
+    "rises":"rise","rose":"rise","risen":"rise","rising":"rise",
+    "shakes":"shake","shook":"shake","shaken":"shake","shaking":"shake",
+    "breaks":"break","broke":"break","broken":"break","breaking":"break",
+    "chooses":"choose","chose":"choose","chosen":"choose","choosing":"choose",
+    "freezes":"freeze","froze":"freeze","frozen":"freeze","freezing":"freeze",
+    "steals":"steal","stole":"steal","stolen":"steal","stealing":"steal",
+    "wears":"wear","wore":"wear","worn":"wear","wearing":"wear",
+    "bears":"bear","bore":"bear","born":"bear","borne":"bear","bearing":"bear",
+    "tears":"tear","tore":"tear","torn":"tear","tearing":"tear",
+    "swears":"swear","swore":"swear","sworn":"swear","swearing":"swear",
+    "weaves":"weave","wove":"weave","woven":"weave","weaving":"weave",
+    "leads":"lead","led":"lead","leading":"lead",
+    "feeds":"feed","fed":"feed","feeding":"feed",
+    "teaches":"teach","taught":"teach","teaching":"teach",
+    "bends":"bend","bent":"bend","bending":"bend",
+    "binds":"bind","bound":"bind","binding":"bind",
+    "blows":"blow","blew":"blow","blown":"blow","blowing":"blow",
+    "burns":"burn","burnt":"burn","burned":"burn","burning":"burn",
+    "bursts":"burst","bursting":"burst",
+    "casts":"cast","casting":"cast",
+    "catches":"catch","caught":"catch","catching":"catch",
+    "clings":"cling","clung":"cling","clinging":"cling",
+    "creeps":"creep","crept":"creep","creeping":"creep",
+    "deals":"deal","dealt":"deal","dealing":"deal",
+    "digs":"dig","dug":"dig","digging":"dig",
+    "draws":"draw","drew":"draw","drawn":"draw","drawing":"draw",
+    "dreams":"dream","dreamt":"dream","dreamed":"dream","dreaming":"dream",
+    "drinks":"drink","drank":"drink","drunk":"drink","drinking":"drink",
+    "eats":"eat","ate":"eat","eaten":"eat","eating":"eat",
+    "fights":"fight","fought":"fight","fighting":"fight",
+    "flies":"fly","flew":"fly","flown":"fly","flying":"fly",
+    "forbids":"forbid","forbade":"forbid","forbidden":"forbid","forbidding":"forbid",
+    "forgets":"forget","forgot":"forget","forgotten":"forget","forgetting":"forget",
+    "forgives":"forgive","forgave":"forgive","forgiven":"forgive","forgiving":"forgive",
+    "hangs":"hang","hung":"hang","hanged":"hang","hanging":"hang",
+    "hides":"hide","hid":"hide","hidden":"hide","hiding":"hide",
+    "hits":"hit","hitting":"hit",
+    "holds":"hold","held":"hold","holding":"hold",
+    "hurts":"hurt","hurting":"hurt",
+    "kneels":"kneel","knelt":"kneel","kneeling":"kneel",
+    "knits":"knit","knitted":"knit","knitting":"knit",
+    "lays":"lay","laid":"lay","laying":"lay",
+    "lies":"lie","lay":"lie","lain":"lie","lying":"lie","tied":"tie",
+    "lights":"light","lit":"light","lighted":"light","lighting":"light",
+    "loads":"load","loaded":"load","loading":"load",
+    "locks":"lock","locked":"lock","locking":"lock",
+    "looks":"look","looked":"look","looking":"look",
+    "melts":"melt","melted":"melt","molten":"melt","melting":"melt",
+    "mistakes":"mistake","mistook":"mistake","mistaken":"mistake","mistaking":"mistake",
+    "overcomes":"overcome","overcame":"overcome","overcoming":"overcome",
+    "oversleeps":"oversleep","overslept":"oversleep","oversleeping":"oversleep",
+    "rings":"ring","rang":"ring","rung":"ring","ringing":"ring",
+    "seeks":"seek","sought":"seek","seeking":"seek",
+    "shines":"shine","shone":"shine","shined":"shine","shining":"shine",
+    "shoots":"shoot","shot":"shoot","shooting":"shoot",
+    "shuts":"shut","shutting":"shut",
+    "sings":"sing","sang":"sing","sung":"sing","singing":"sing",
+    "sinks":"sink","sank":"sink","sunk":"sink","sinking":"sink",
+    "sits":"sit","sat":"sit","sitting":"sit",
+    "sleeps":"sleep","slept":"sleep","sleeping":"sleep",
+    "slides":"slide","slid":"slide","slidden":"slide","sliding":"slide",
+    "slings":"sling","slung":"sling","slinging":"sling",
+    "slinks":"slink","slunk":"slink","slinking":"slink",
+    "smells":"smell","smelt":"smell","smelled":"smell","smelling":"smell",
+    "speeds":"speed","sped":"speed","speeded":"speed","speeding":"speed",
+    "spells":"spell","spelt":"spell","spelled":"spell","spelling":"spell",
+    "spills":"spill","spilt":"spill","spilled":"spill","spilling":"spill",
+    "spins":"spin","spun":"spin","spinning":"spin",
+    "spits":"spit","spat":"spit","spitting":"spit",
+    "splits":"split","splitting":"split",
+    "spreads":"spread","spreading":"spread",
+    "springs":"spring","sprang":"spring","sprung":"spring","springing":"spring",
+    "sticks":"stick","stuck":"stick","sticking":"stick",
+    "stings":"sting","stung":"sting","stinging":"sting",
+    "strikes":"strike","struck":"strike","stricken":"strike","striking":"strike",
+    "sweeps":"sweep","swept":"sweep","sweeping":"sweep",
+    "swells":"swell","swelled":"swell","swollen":"swell","swelling":"swell",
+    "swims":"swim","swam":"swim","swum":"swim","swimming":"swim",
+    "swings":"swing","swung":"swing","swinging":"swing",
+    "throws":"throw","threw":"throw","thrown":"throw","throwing":"throw",
+    "understands":"understand","understood":"understand","understanding":"understand",
+    "wakes":"wake","woke":"wake","woken":"wake","waking":"wake",
+    "weeps":"weep","wept":"weep","weeping":"weep",
+    "wins":"win","won":"win","winning":"win",
+    "winds":"wind","wound":"wind","winding":"wind",
+    "withdraws":"withdraw","withdrew":"withdraw","withdrawn":"withdraw","withdrawing":"withdraw",
+    "withstands":"withstand","withstood":"withstand","withstanding":"withstand",
+    "wrings":"wring","wrung":"wring","wringing":"wring"
+  };
+  if (IRREGULAR[w]) return IRREGULAR[w];
+
+  const EXCEPTIONS = new Set([
+    "this","thus","yes","gas","bus","plus","minus","news","series","species","chess","cross","pass","class","mass","glass","grass","press","dress","stress","bless","kiss","miss","boss","loss","toss","access","success","process","progress","distress","address","witness","illness","darkness","kindness","madness","sadness","goodness","fitness","happiness","awareness","weakness","greatness","richness","cleanliness","sickness","tiredness","coldness","warmth","length","strength","width","depth","health","wealth","truth","youth","growth","faith","death","birth","worth","month","earth","north","south","mouth","teeth","tooth","foot","feet","goose","geese","man","men","woman","women","child","children","ox","oxen","sheep","fish","deer","moose","people","person","police","clothes","works","means","goods","remains","thanks","congratulations","belongings","earnings","savings","surroundings","findings","doings","box","mix","fix","tax","wax","fox"
+  ]);
+  if (EXCEPTIONS.has(w)) return w;
+
+  const isValid = s => s && s.length >= 2 && /^[a-z]+$/.test(s);
+  const tryEDrop = base => {
+    if (base && base.length >= 2 && base.length <= 4 && !base.endsWith("e") && /[aeiou][bcdfghjklmnpqrstvwxz]$/.test(base)) {
+      const alt = base + "e";
+      if (isValid(alt)) return alt;
+    }
+    return null;
+  };
+  const tryDoubleCons = base => {
+    if (base && base.length > 3 && /([bcdfghjklmnpqrstvz])\1$/.test(base)) {
+      const single = base.slice(0, -1);
+      if (single.length >= 3) return single;
+    }
+    return null;
+  };
+
+  if (w.endsWith("ies") && w.length >= 4) {
+    const stem = w.slice(0, -3);
+    if (stem.length === 1) {
+      const base = stem + "ie";
+      if (isValid(base)) return base;
+    } else if (stem.length >= 2) {
+      const base = stem + "y";
+      if (isValid(base)) return base;
+    }
+  }
+  if (w.endsWith("ied") && w.length >= 4) {
+    const stem = w.slice(0, -3);
+    if (stem.length === 1) {
+      const base = stem + "ie";
+      if (isValid(base)) return base;
+    } else if (stem.length >= 2) {
+      const base = stem + "y";
+      if (isValid(base)) return base;
+    }
+  }
+  if (w.endsWith("ing") && w.length > 4) {
+    let base = w.slice(0, -3);
+    if (EXCEPTIONS.has(base)) return base;
+    if (base.length === 1) {
+      const alt = base + "ie";
+      if (isValid(alt)) return alt;
+    }
+    const ed = tryEDrop(base);
+    if (ed) return ed;
+    const dc = tryDoubleCons(base);
+    if (dc) return dc;
+    if (isValid(base)) return base;
+  }
+  if (w.endsWith("ed") && w.length > 3) {
+    let base = w.slice(0, -2);
+    if (EXCEPTIONS.has(base)) return base;
+    const ed = tryEDrop(base);
+    if (ed) return ed;
+    const dc = tryDoubleCons(base);
+    if (dc) return dc;
+    if (isValid(base)) return base;
+  }
+  if (w.endsWith("es") && w.length > 3) {
+    let base = w.slice(0, -2);
+    if (EXCEPTIONS.has(base)) return base;
+    const ed = tryEDrop(base);
+    if (ed) return ed;
+    if (isValid(base)) return base;
+  }
+  if (w.endsWith("s") && !w.endsWith("ss") && w.length > 3) {
+    const base = w.slice(0, -1);
+    if (isValid(base)) return base;
+  }
+  return w;
+}
+
 function renderClickablePara(text, spans, lookups, paraIdx){
   spans.sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
   let out="", cur=0;
@@ -1803,8 +2057,9 @@ async function handleWordClick(span){
     }
     if(!cn) throw new Error("翻译失败");
     const {pos, meaning, cnContext} = parseMeaning(cn);
-    autoAddToVocab(word, pos, meaning, "");
-    saveArticleWordLookup(word, cn, cnContext, paraIdx, occIdx);
+    const lemma = toLemma(word);
+    autoAddToVocab(lemma, pos, meaning, "");
+    saveArticleWordLookup(word, lemma, cn, cnContext, paraIdx, occIdx);
     // 重新渲染文章：已翻译词自动显示内联释义、标红，并追加到下方生词表
     renderArticle(currentArticleIdx);
   }catch(e){
@@ -1819,11 +2074,12 @@ async function handleWordClick(span){
 }
 
 /* 点词翻译后保存到查词记录，并强制关联当前文章（用于标红 + 文章生词表） */
-function saveArticleWordLookup(word, cn, cnContext, paraIdx, occIdx){
+function saveArticleWordLookup(word, lemma, cn, cnContext, paraIdx, occIdx){
   let arr = [];
   try { arr = JSON.parse(uStorage.getItem(WT_LOOKUP_KEY) || "[]") || []; } catch (e) { arr = []; }
   const a = getArticles()[currentArticleIdx];
   const entry = { word, cn, date: todayStr(), fromArticle: true };
+  if (lemma && lemma !== word) entry.lemma = lemma;
   if(cnContext) entry.cnContext = cnContext;
   if(paraIdx !== undefined && paraIdx !== null) entry.paraIdx = paraIdx;
   if(occIdx !== undefined && occIdx !== null) entry.occIdx = occIdx;
@@ -2946,7 +3202,9 @@ function saveWtLookup(word, cn) {
   let arr = [];
   try { arr = JSON.parse(uStorage.getItem(WT_LOOKUP_KEY) || "[]") || []; } catch (e) { arr = []; }
   const hit = findTermInTodayArticles(word);
+  const lemma = toLemma(word);
   const entry = { word, cn, date: todayStr() };
+  if (lemma && lemma !== word) entry.lemma = lemma;
   if (hit) {
     entry.fromArticle = true;
     entry.articleId = hit.articleId;
@@ -3025,7 +3283,8 @@ async function wtLookup() {
     else if (hitColloc) myOut.classList.add("hit-blue");
     saveWtLookup(raw, cn);
     const { pos, meaning } = parseMeaning(cn);
-    autoAddToVocab(raw, pos, meaning, "");
+    const lemma = toLemma(raw);
+    autoAddToVocab(lemma, pos, meaning, "");
     if (hitWord) pending.textContent = "📕 来自今日文章生词（标红）：已自动加入全部词汇。";
     else if (hitColloc) pending.textContent = "🔵 来自今日文章固定搭配（表蓝）：已自动加入全部词汇。";
     else pending.textContent = "✓ 已自动加入全部词汇（多次翻译会累计「译次」，可在「重点词」里查看）。";
@@ -3096,7 +3355,8 @@ function wtSave() {
   if (!cn) { alert("请粘贴释义"); return; }
   saveWtLookup(src, cn);
   const { pos, meaning } = parseMeaning(cn);
-  autoAddToVocab(src, pos, meaning, "");
+  const lemma = toLemma(src);
+  autoAddToVocab(lemma, pos, meaning, "");
   document.getElementById("wtPaste").value = "";
   alert("已保存到查词记录，并自动加入全部词汇");
 }
