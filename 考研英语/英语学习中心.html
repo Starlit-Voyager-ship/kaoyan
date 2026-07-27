@@ -1973,6 +1973,7 @@ function renderArtQuiz(a) {
       <div class="art-q-head" onclick="toggleArtQ(${i})">
         <span class="qno">${escapeHtml(q.no)}${q.isWrong ? '<span class="wrong-tag">错题</span>' : ''}</span>
         <span class="qtext">${formatText(q.q)}</span>
+        <button class="ocr-btn" style="margin-left:auto;margin-right:8px;font-size:12px;padding:4px 10px;" onclick="markArtQWrong(${i}, event)">标记错题</button>
         <span class="arrow">▼</span>
       </div>
       <div class="art-q-body" id="artq-${i}">
@@ -1995,6 +1996,25 @@ function toggleArtQ(i) {
   arrow.textContent = body.classList.contains("open") ? "▲" : "▼";
   if (body.classList.contains("open")) mathTypeset(body);
 }
+function saveArticleQuestions(a) {
+  const all = loadArticlesExtra();
+  const idx = all.findIndex(x => x.id === a.id);
+  if (idx >= 0) {
+    all[idx].questions = a.questions;
+    saveArticlesExtra(all);
+    return true;
+  }
+  return false;
+}
+function markArtQWrong(i, event) {
+  if (event) event.stopPropagation();
+  const a = getArticles()[currentArticleIdx];
+  const q = (a.questions || [])[i];
+  if (!q) return;
+  q.isWrong = true;
+  saveArticleQuestions(a);
+  renderArtQuiz(a);
+}
 function selectArtQ(el) {
   if (el.classList.contains("disabled")) return;
   const qi = +el.dataset.qi;
@@ -2003,6 +2023,10 @@ function selectArtQ(el) {
   const q = (a.questions || [])[qi];
   if (!q) return;
   const isCorrect = key === q.correct;
+  if (!isCorrect) {
+    q.isWrong = true;
+    saveArticleQuestions(a);
+  }
   const item = el.closest(".art-q-item");
   item.querySelectorAll(".art-q-opt").forEach(opt => {
     opt.classList.add("disabled");
