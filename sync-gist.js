@@ -56,24 +56,43 @@
     return null;
   }
 
-  async function saveGistContent(token, obj){
-    const content = JSON.stringify(obj);
+  async function saveGistContent(token, obj, retries){
+    if(retries === undefined) retries = 4;
+    let content = JSON.stringify(obj);
     const id = await findGistId(token);
-    if(id){
-      const g = await gh('PATCH', '/gists/' + id, {
-        files: { [DATA_FILE]: { content } },
-        description: '考研学习中心数据同步 - ' + user
-      }, token);
-      setGistId(g.id);
-      return g;
+    for(let attempt = 0; attempt <= retries; attempt++){
+      try {
+        if(id){
+          const g = await gh('PATCH', '/gists/' + id, {
+            files: { [DATA_FILE]: { content } },
+            description: '考研学习中心数据同步 - ' + user
+          }, token);
+          setGistId(g.id);
+          return g;
+        }
+        const g = await gh('POST', '/gists', {
+          files: { [DATA_FILE]: { content } },
+          public: false,
+          description: '考研学习中心数据同步 - ' + user
+        }, token);
+        setGistId(g.id);
+        return g;
+      } catch(e){
+        // GitHub Gist 乐观锁：并发写同一文件返回 409（如 30 分钟自动同步 vs 19:20/19:30 自动化）。
+        // 重新读取最新内容合并后再写，避免后写覆盖先写导致数据丢失。
+        if(attempt < retries && /409/.test(e.message || '')){
+          try {
+            const fresh = await loadGistObj(token);
+            if(fresh && typeof fresh === 'object'){
+              for(const k in fresh){ if(!(k in obj)) obj[k] = fresh[k]; }
+              content = JSON.stringify(obj);
+            }
+          } catch(_) {}
+          continue;
+        }
+        throw e;
+      }
     }
-    const g = await gh('POST', '/gists', {
-      files: { [DATA_FILE]: { content } },
-      public: false,
-      description: '考研学习中心数据同步 - ' + user
-    }, token);
-    setGistId(g.id);
-    return g;
   }
 
   function collectData(){
