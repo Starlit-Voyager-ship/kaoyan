@@ -2190,10 +2190,22 @@ function renderArticle(idx) {
   const highlightWords = (a.words || []).map(w => ({ word: w.word, meaning: w.meaning }));
   const highlightCollocs = (a.collocs || []).map(c => ({ phrase: c.phrase, meaning: c.meaning }));
   articleLookups.filter(x => x.type === "word").forEach(x => {
-    if (!highlightWords.some(w => w.word === x.word)) highlightWords.push({ word: x.word, meaning: x.cn, cnContext: x.cnContext });
+    const idx = highlightWords.findIndex(w => w.word === x.word);
+    if (idx < 0) {
+      highlightWords.push({ word: x.word, meaning: x.cn, cnContext: x.cnContext });
+    } else if (!highlightWords[idx].meaning && x.cn) {
+      highlightWords[idx].meaning = x.cn;
+      if (x.cnContext) highlightWords[idx].cnContext = x.cnContext;
+    }
   });
   articleLookups.filter(x => x.type === "colloc").forEach(x => {
-    if (!highlightCollocs.some(c => c.phrase === x.word)) highlightCollocs.push({ phrase: x.word, meaning: x.cn, cnContext: x.cnContext });
+    const idx = highlightCollocs.findIndex(c => c.phrase === x.word);
+    if (idx < 0) {
+      highlightCollocs.push({ phrase: x.word, meaning: x.cn, cnContext: x.cnContext });
+    } else if (!highlightCollocs[idx].meaning && x.cn) {
+      highlightCollocs[idx].meaning = x.cn;
+      if (x.cnContext) highlightCollocs[idx].cnContext = x.cnContext;
+    }
   });
   // 已点词翻译的记录 → 按段落+出现位置显示内联释义，不再全文统一
   const hasTrans = Array.isArray(a.translations) && a.translations.length === a.paragraphs.length;
