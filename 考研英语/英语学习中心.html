@@ -2000,7 +2000,8 @@ function saveArticleQuestions(a) {
   const all = loadArticlesExtra();
   const idx = all.findIndex(x => x.id === a.id);
   if (idx >= 0) {
-    all[idx].questions = a.questions;
+    // 深拷贝 questions，避免引用混乱导致保存失败
+    all[idx].questions = JSON.parse(JSON.stringify(a.questions || []));
     saveArticlesExtra(all);
     return true;
   }
@@ -2012,8 +2013,10 @@ function markArtQWrong(i, event) {
   const q = (a.questions || [])[i];
   if (!q) return;
   q.isWrong = true;
-  saveArticleQuestions(a);
-  renderArtQuiz(a);
+  if (saveArticleQuestions(a)) {
+    // 从 localStorage 重新加载后渲染，确保持久化成功
+    renderArtQuiz(getArticles()[currentArticleIdx]);
+  }
 }
 function selectArtQ(el) {
   if (el.classList.contains("disabled")) return;
@@ -2023,11 +2026,16 @@ function selectArtQ(el) {
   const q = (a.questions || [])[qi];
   if (!q) return;
   const isCorrect = key === q.correct;
+  const item = el.closest(".art-q-item");
   if (!isCorrect) {
     q.isWrong = true;
     saveArticleQuestions(a);
+    item.classList.add("wrong-q");
+    const qno = item.querySelector(".qno");
+    if (qno && !qno.querySelector(".wrong-tag")) {
+      qno.insertAdjacentHTML("beforeend", '<span class="wrong-tag">错题</span>');
+    }
   }
-  const item = el.closest(".art-q-item");
   item.querySelectorAll(".art-q-opt").forEach(opt => {
     opt.classList.add("disabled");
     if (opt.dataset.key === q.correct) opt.classList.add("correct");
