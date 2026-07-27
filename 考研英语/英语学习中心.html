@@ -1996,13 +1996,20 @@ function toLemma(word) {
 function renderClickablePara(text, spans, lookups, paraIdx){
   spans.sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
   let out="", cur=0;
+  const a = getArticles()[currentArticleIdx];
+  const list = (lookups || []).filter(x => x.fromArticle && x.articleId === (a && a.id));
   for(const [s,e,t] of spans){
     if(s<cur) continue;
     out += renderClickablePlain(text.slice(cur, s), lookups, paraIdx);
     const cls = t==="blue" ? "hl-blue" : "hl-red";
     const w = text.slice(s, e);
     const cw = cleanWordToken(w);
-    out += `<span class="${cls} word-clickable" data-word="${escapeHtml(cw)}" data-para="${paraIdx}" data-occ="-1">${escapeHtml(w)}</span>`;
+    // 查 lookup：spans 内 occIdx=-1，匹配时也按 -1 或 undefined（无位置信息）匹配
+    const rec = list.find(x => x.word.toLowerCase() === cw.toLowerCase() &&
+      (x.paraIdx === undefined || x.paraIdx === paraIdx) &&
+      (x.occIdx === undefined || x.occIdx === -1));
+    const cn = rec ? rec.cn : '';
+    out += `<span class="${cls} word-clickable" data-word="${escapeHtml(cw)}" data-para="${paraIdx}" data-occ="-1">${escapeHtml(w)}</span>` + (cn ? `<span class="word-inline-cn">（${escapeHtml(cn)}）</span>` : "");
     cur = e;
   }
   out += renderClickablePlain(text.slice(cur), lookups, paraIdx);
