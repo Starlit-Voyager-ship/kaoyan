@@ -1453,6 +1453,7 @@ function selectQuizOption(el) {
     else if (opt === el) opt.classList.add("wrong");
   });
   if (!isCorrect) recordQuizWrong(q, "错选 " + key + "，正确 " + q.correct);
+  else recordQuizCorrect(q);
   showQuizResult(qid, isCorrect);
 }
 
@@ -1469,6 +1470,7 @@ function submitFillQuiz(qid) {
   input.disabled = true;
   if (btn) btn.disabled = true;
   if (!isCorrect) recordQuizWrong(q, "输入：" + raw.trim());
+  else recordQuizCorrect(q);
   showQuizResult(qid, isCorrect);
 }
 function recordQuizWrong(q, reason){
@@ -1487,6 +1489,17 @@ function recordQuizWrong(q, reason){
   if(existing){ Object.assign(existing, rec2); }
   else bank.push(rec2);
   ensureWeakFromTask(rec2);
+  uStorage.setItem("mathAutoBank_v1", JSON.stringify(bank));
+}
+function recordQuizCorrect(q){
+  // 题库作答“答对”也落库为 ✅，供日报/周总结正确率统计（修复 BUG A：此前答对从不落库，导致正确率恒为 0）
+  let bank=[]; try{ bank=JSON.parse(uStorage.getItem("mathAutoBank_v1")||"[]"); }catch(e){ bank=[]; }
+  const day = todayStr();
+  const existing = bank.find(r => r.no === q.no || (r.q && q.q && r.q.trim() === q.q.trim()));
+  const rec2={ date:day, no:q.no, kp:q.kp, diff:q.diff||"★", res:"✅", src:q.src||"🟧", from:q.from||"题库测试", q:q.q, a:q.a, note:"✅ 题库测试作答正确", weak:false, auto:false, topicKey:q.topicKey||null,
+    type:q.type||undefined, options:q.options||undefined, correct:q.correct||undefined, answer:q.answer||undefined };
+  if(existing){ Object.assign(existing, rec2); }   // 同题去重：覆盖原 ❌/⚪ 记录为 ✅
+  else bank.push(rec2);
   uStorage.setItem("mathAutoBank_v1", JSON.stringify(bank));
 }
 

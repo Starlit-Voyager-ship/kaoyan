@@ -2764,7 +2764,7 @@ function getProxyUrl() {
 }
 // 前端直连 DeepSeek（用于云端/无本地代理环境）。key 仅存浏览器 localStorage。
 async function aiTranslateDirect(text, mode, apiKey) {
-  const SYSTEM_WORD = '你是考研英语辅导助手“小歌”。用户会给你一个英文单词或固定搭配（phrase），请返回它的中文释义，格式严格为「词性. 释义」。例如单词 "distinctly" 返回 "adv. 明显地；显著地；清楚地"，固定搭配 "a range of" 返回 "phrase. 一系列；各种"。若有考研常见熟词生义，在释义后用括号简注（例：v. 演奏（熟义：玩））。只输出这一行，不要解释、不要加引号、不要编号、不要换行。';
+  const SYSTEM_WORD = '你是考研英语辅导助手“小歌”。用户会给你一个英文单词或固定搭配（phrase），请返回它的中文释义，格式必须严格为「词性. 释义」。例如单词 "distinctly" 返回 "adv. 明显地；显著地；清楚地"，固定搭配 "a range of" 返回 "phrase. 一系列；各种"。必须带词性前缀，不要只输出中文释义、不要重复英文词、不要解释、不要加引号、不要编号、不要换行。';
   const SYSTEM_SENTENCE = '你是考研英语辅导助手“小歌”。请将用户给出的英文翻译成自然、准确的中文，风格简洁、符合考研英语语境；只输出译文本身，不要解释、不要加引号、不要编号。';
   const sys = mode === "word" ? SYSTEM_WORD : SYSTEM_SENTENCE;
   const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -2784,7 +2784,7 @@ async function aiTranslateDirect(text, mode, apiKey) {
 }
 /* 点词翻译专用：结合原句与中文译文，返回带「句中译」的释义，用于中文译文标红 */
 async function aiTranslateWordContext(word, enSentence, cnSentence, apiKey) {
-  const sys = '你是考研英语辅导助手“小歌”。请根据给出的英文单词、它所在的原句以及该句的中文译文，返回该单词的中文释义。格式严格为：「词性. 释义（句中译：实际中文对应词）」。例如单词 "distinctly"，原句 "He distinctly remembers the event"，译文 "他 distinctly 记得那件事" 时返回 "adv. 明显地；显著地（句中译：明显地）"；单词 "pleasure"，原句 "Yet pleasure at your own can vanish..."，译文 "但那份喜悦感会瞬间消失" 时返回 "n. 愉快；乐趣（句中译：喜悦）"。只输出这一行，不要解释、不要加引号、不要编号、不要换行。';
+  const sys = '你是考研英语辅导助手“小歌”。请根据给出的英文单词、它所在的原句以及该句的中文译文，返回该单词的中文释义。格式必须严格为：「词性. 释义（句中译：实际中文对应词）」。例如单词 "distinctly"，原句 "He distinctly remembers the event"，译文 "他 distinctly 记得那件事" 时返回 "adv. 明显地；显著地（句中译：明显地）"；单词 "pleasure"，原句 "Yet pleasure at your own can vanish..."，译文 "但那份喜悦感会瞬间消失" 时返回 "n. 愉快；乐趣（句中译：喜悦）"。必须带词性前缀，不要只输出中文释义、不要重复英文词、不要解释、不要加引号、不要编号、不要换行。';
   const user = `单词：${word}\n原句：${enSentence}\n译文：${cnSentence}`;
   const r = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
@@ -2806,8 +2806,8 @@ function isLocalEnv() {
   return h === "localhost" || h === "127.0.0.1" || h === "" || h === "file.localhost";
 }
 async function aiTranslate(text, mode) {
-  // 本地：优先走本地代理（更稳、key 不暴露）
-  if (isLocalEnv()) {
+  // 优先尝试本地代理：只要用户本机开了 translate-proxy，即使网页部署在 GitHub Pages 也能跨域调用
+  try {
     const base = getProxyUrl();
     const r = await fetch(`${base}/translate`, {
       method: "POST",
@@ -2817,17 +2817,24 @@ async function aiTranslate(text, mode) {
     const j = await r.json();
     if (j && j.ok && j.translation) return j.translation;
     throw new Error(j && j.error ? j.error : "翻译代理返回异常");
+  } catch (e) {
+    // 代理未启动或调用失败：fallback 到在线 DeepSeek
   }
   // 在线：走前端直连 DeepSeek（需用户填入 key）
   const key = (uStorage.getItem("deepseek-api-key") || "").trim();
-  if (!key) throw new Error("在线环境未配置 DeepSeek API Key，请在上方「在线翻译设置」填写（sk- 开头）。");
+  if (!key) throw new Error("本地代理不可用，且在线环境未配置 DeepSeek API Key，请在上方「在线翻译设置」填写（sk- 开头），或启动 translate-proxy。");
   return await aiTranslateDirect(text, mode, key);
 }
 function parseMeaning(raw) {
-  const text = (raw || "").trim();
-  // 匹配：词性. 释义（句中译：xxx）
+  let text = (raw || "").trim();
+  // 去除模型可能包裹的引号、Markdown 代码块标记或多余换行
+  text = text.replace(/^["'`]+|["'`]+$/g, "").trim();
+  // 严格格式：词性. 释义（句中译：xxx）
   const m = text.match(/^([a-zA-Z]+\.)\s*([\s\S]*?)\s*(?:（句中译：([^）]+)）)?$/);
   if (m) return { pos: m[1], meaning: m[2].trim(), cnContext: (m[3] || "").trim() };
+  // 宽松兜底：模型有时会在前面重复英文词或加序号，再定位"词性. 释义"
+  const loose = text.match(/(?:^|\n|\s)([a-zA-Z]+\.)\s+([^（\n]+?)\s*(?:（句中译：([^）]+)）)?(?:\n|$)/);
+  if (loose) return { pos: loose[1], meaning: loose[2].trim(), cnContext: (loose[3] || "").trim() };
   return { pos: "", meaning: text, cnContext: "" };
 }
 /* ================= 查词 · 加词（单词测试 tab 内；复用翻译 tab 的代理地址） ================= */
@@ -2977,6 +2984,13 @@ function autoAddToVocab(word, pos, meaning, fam) {
   const exists = vocab.find(v => v.word.toLowerCase() === word.toLowerCase());
   if (exists) {
     exists.transCount = (parseInt(exists.transCount, 10) || 0) + 1;
+    // 旧释义没有词性而新释义有词性时，补全/刷新释义（修复旧数据或机翻无词性导致的空词性列）
+    const oldHasPos = /^[a-zA-Z]+\./.test(exists.meaning || "");
+    const newHasPos = /^[a-zA-Z]+\./.test(fullMeaning || "");
+    if (newHasPos && !oldHasPos) {
+      exists.meaning = fullMeaning;
+      if (fam) exists.familiar = fam;
+    }
   } else {
     const o = parseRow([word, fullMeaning, fam, "", 0, "", 0, todayStr(), todayStr(), todayStr() + ":新", 1]);
     vocab.push(o);
