@@ -197,7 +197,7 @@
   // 判断当前是否为总入口页面；只在总入口显示账号切换 UI
   function isMainPortal() {
     var path = (location.pathname || "").toLowerCase();
-    if (path === "/" || path.endsWith("/index.html") || path.endsWith("/考研学习中心.html")) return true;
+    if (path === "/" || path.endsWith("/index.html") || path.endsWith("/考研学习中心.html") || path.endsWith("/")) return true;
     return false;
   }
 
