@@ -1886,7 +1886,7 @@ function renderArticle(idx) {
   document.getElementById("artTitle").textContent = a.title;
   const m = a.meta;
   document.getElementById("artMeta").innerHTML = escapeHtml(
-    `${m.source} ｜ ${m.topic} ｜ 答题：${m.score} ｜ 学习日 ${m.d0} → D1 ${m.d1}`
+    `${m.source} ｜ ${m.topic}`
   );
 
   // 高亮来源：合并文章预填（旧文章保留） + 单词翻译查词记录（新文章驱动）
@@ -2117,8 +2117,8 @@ async function confirmArticle() {
   const paras = window.__ocrParas || [];
   const msg = document.getElementById("ocrMsg");
   if (!paras.length) { msg.style.color = "var(--danger)"; msg.textContent = "没有识别到段落"; return; }
-  const title = (document.getElementById("ocrTitle").value || "").trim() || ("OCR文章 " + new Date().toISOString().slice(0, 10));
-  const today = new Date().toISOString().slice(0, 10);
+  const title = (document.getElementById("ocrTitle").value || "").trim() || ("OCR文章 " + todayStr());
+  const today = todayStr();
   const newArt = {
     id: "usr-" + Date.now(),
     title: title,
