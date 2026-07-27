@@ -1,0 +1,58 @@
+{
+  "date": "2026-07-24",
+  "eng": {
+    "newWords": ["address", "precedent", "intact", "compromise", "grievance"],
+    "review": ["accountable", "dismiss", "substantial", "arbitrary"],
+    "key": ["address 熟词僻义：v. 处理；n. 地址/演讲", "precedent vs president 区分"],
+    "articles": [
+      {
+        "title": "2006 Text 2",
+        "words": ["precedent", "grievance"],
+        "wrongQuestions": [
+          {
+            "no": "26",
+            "type": "细节定位偏差",
+            "tangType": "detail",
+            "why": "题干问的是 'overcharged customers' 的反应，我定位到了文章开头的 'shippers who feel...'，但把 'will appeal for rate relief' 理解成了 '上诉 to court'，忽略了 'unless' 条件句，误选了 C。"
+          }
+        ]
+      },
+      {
+        "title": "2006 Text 3",
+        "words": ["compromise", "intact"],
+        "wrongQuestions": [
+          {
+            "no": "31",
+            "type": "例证题找例子支撑的观点",
+            "tangType": "example",
+            "why": "把例子本身 'dead salmon' 当成答案，没往前找观点句 'reliability of data'，误选 B。"
+          },
+          {
+            "no": "34",
+            "type": "作者态度词认不准",
+            "tangType": "attitude",
+            "why": "把 'skeptical' 看成了 'objective'，忽略了段尾 'which seems reasonable' 是反讽，应选怀疑。"
+          }
+        ]
+      }
+    ]
+  },
+  "math": {
+    "groups": 3,
+    "correct": 8,
+    "wrong": 2,
+    "topics": ["矩阵求逆", "行列式性质", "特征值与特征向量"],
+    "wrongDetails": [
+      {
+        "topic": "4 阶分块上三角矩阵求逆",
+        "reason": "套用 M⁻¹ 公式时把 A⁻¹ 与 C⁻¹ 的位置搞反，且忘记右上角要 '-A⁻¹BC⁻¹'，只写了 'BC⁻¹'。"
+      },
+      {
+        "topic": "矩阵秩的概念判断",
+        "reason": "把 'r(A)=n' 与 '|A|≠0' 的等价关系记混，对于不可逆方阵还选了 'r(A)=n'。"
+      }
+    ]
+  },
+  "summary": "今天英语精读了两篇 2006 年真题阅读，新背 5 个词、复习 4 个词、重点标记 2 个熟词僻义；错题集中在<strong>细节题定位</strong>和<strong>例证题/态度题</strong>，需要再练找观点句和作者态度词。数学做了 3 组题，对 8 错 2，主要卡在<strong>分块矩阵求逆</strong>和<strong>矩阵秩</strong>，公式位置和等价条件还要背熟。",
+  "encouragement": "错题都是暴露薄弱点的好机会，把今天这 2 道高数/线代错题和 3 道英语错题的思路再过一遍，明天正确率就能上去 💪"
+}

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <script src="account.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考研学习中心</title>
+<link rel="stylesheet" href="./theme.css">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --bg2: #e3e8f0;
+    --card: #ffffff;
+    --text: #1f2733;
+    --muted: #7a869a;
+    --border: #e6e9f0;
+    --primary: #6366f1;
+    --primary-d: #4f46e5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(160deg, var(--bg), var(--bg2)); color: var(--text); min-height: 100vh;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 40px; }
+  .page-head {
+    background: linear-gradient(135deg, #6366f1, #0ea5e9);
+    color: #fff; border-radius: 18px; padding: 22px 26px;
+    box-shadow: 0 10px 30px rgba(99,102,241,.25); position: relative;
+  }
+  .page-head h1 { margin: 0; font-size: 27px; letter-spacing: 1px; }
+  .page-head .subtitle { margin-top: 6px; font-size: 14px; opacity: .92; }
+  .clock {
+    background: rgba(255,255,255,.16);
+    border-radius: 12px; padding: 8px 14px; font-size: 14px; text-align: right;
+  }
+  .clock .clock-date { opacity: .9; }
+  .clock .clock-time { font-weight: 800; letter-spacing: 1px; margin-left: 4px; }
+
+  .head-tools { position: absolute; top: 18px; right: 24px; display: flex; gap: 10px; align-items: center; }
+  .data-mgr-btn { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 12px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .data-mgr-btn:hover { background: rgba(255,255,255,.28); }
+
+  .module-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
+  .module-tab {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    padding: 11px 26px; border-radius: 14px; cursor: pointer; font-size: 16px; font-weight: 700;
+    transition: all .15s; box-shadow: 0 2px 8px rgba(31,39,51,.05);
+  }
+  .module-tab:hover { border-color: var(--primary); transform: translateY(-1px); }
+  .module-tab.active { background: linear-gradient(135deg, #6366f1, #0ea5e9); color: #fff; border-color: transparent; }
+
+  .frame-wrap {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; box-shadow: 0 6px 20px rgba(31,39,51,.06); height: 80vh;
+  }
+  iframe { width: 100%; height: 100%; border: none; display: none; }
+  iframe.active { display: block; }
+
+  .tip { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  .modal-mask { position: fixed; inset: 0; background: rgba(20,24,35,.5); display: none; align-items: center; justify-content: center; z-index: 999; }
+  .modal { background: var(--card); border-radius: 16px; width: min(460px,92vw); max-height: 86vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 800; font-size: 17px; }
+  .modal-head button { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--muted); }
+  .modal-body { padding: 18px 20px 22px; }
+  .modal-tip { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0 0 14px; }
+  .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { background: linear-gradient(135deg,#6366f1,#0ea5e9); color: #fff; border: none; border-radius: 12px; padding: 10px 18px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-default { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 14px; cursor: pointer; color: var(--text); }
+  .data-msg { margin-top: 14px; font-size: 13px; min-height: 18px; }
+  .data-msg.ok { color: #16a34a; }
+  .data-msg.err { color: #dc2626; }
+  .import-preview { margin-top: 14px; font-size: 13px; line-height: 1.7; background: var(--bg); border-radius: 12px; padding: 12px 14px; }
+
+  @media (max-width: 640px) {
+    .head-tools { position: static; margin-top: 10px; display: flex; }
+    .frame-wrap { height: 88vh; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="page-head">
+    <h1>考研学习中心</h1>
+    <div class="subtitle">英语 · 数学 双科并行 · 可交互学习中心</div>
+    <div class="head-tools">
+      <button id="btnDataMgr" class="data-mgr-btn">⚙️ 数据备份</button>
+      <div class="clock" id="clock">— 加载中 —</div>
+    </div>
+  </div>
+
+  <div class="module-tabs" id="moduleTabs">
+    <button class="module-tab active" data-mod="eng">英语学习中心</button>
+    <button class="module-tab" data-mod="math">数学学习中心</button>
+    <button class="module-tab" data-mod="report">📊学习日报</button>
+  </div>
+
+  <div class="frame-wrap">
+    <iframe id="engFrame" class="active" src="考研英语/英语学习中心.html"></iframe>
+    <iframe id="mathFrame" src="考研数学/数学学习中心.html"></iframe>
+    <iframe id="reportFrame" src="学习日报.html"></iframe>
+  </div>
+
+  <div id="dataModal" class="modal-mask">
+    <div class="modal">
+      <div class="modal-head"><span>数据备份与恢复</span><button id="btnCloseModal" title="关闭">✕</button></div>
+      <div class="modal-body">
+        <p class="modal-tip">备份会把【当前登录账号】的全部学习数据导出为 .json 文件（含 API Key，请妥善保管）。换设备 / 清缓存前建议先备份；也可在设备间用备份文件搬运数据。每个账号独立备份。</p>
+        <div class="modal-actions">
+          <button type="button" id="btnExport" class="btn-primary">💾 导出账号备份</button>
+          <button type="button" id="btnExportVocab" class="btn-default">📄 导出词汇表 PDF</button>
+          <button type="button" id="btnExportWrong" class="btn-default">📝 导出错题本 PDF</button>
+          <button type="button" id="btnImport" class="btn-primary">📤 导入恢复</button>
+          <input type="file" id="fileImport" accept="application/json,.json" style="display:none">
+        </div>
+        <div id="dataMsg" class="data-msg"></div>
+        <div id="importPreview" class="import-preview" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function tickClock() {
+    const d = new Date();
+    const wd = ["日","一","二","三","四","五","六"][d.getDay()];
+    const p = n => String(n).padStart(2,"0");
+    document.getElementById("clock").innerHTML =
+      `<span class="clock-date">${d.getFullYear()}年${p(d.getMonth()+1)}月${p(d.getDate())}日 周${wd}</span>` +
+      `<span class="clock-time">${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}</span>`;
+  }
+  document.getElementById("moduleTabs").addEventListener("click", e => {
+    if (!e.target.classList.contains("module-tab")) return;
+    document.querySelectorAll(".module-tab").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    const mod = e.target.dataset.mod;
+    document.getElementById("engFrame").classList.toggle("active", mod === "eng");
+    document.getElementById("mathFrame").classList.toggle("active", mod === "math");
+    document.getElementById("reportFrame").classList.toggle("active", mod === "report");
+  });
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ===== 数据备份与恢复（仅当前登录账号） =====
+  (function(){
+    const EXCLUDE = new Set(["vocab-dir-handle"]);
+    const modal = document.getElementById("dataModal");
+    const msg = document.getElementById("dataMsg");
+    const preview = document.getElementById("importPreview");
+    function showMsg(t, type){ msg.textContent = t; msg.className = "data-msg " + (type==="ok"?"ok":"err"); }
+    function curUser(){ return (window.getCurrentUser && window.getCurrentUser()) || ""; }
+    function todayStr(){ const d=new Date(); const p=n=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
+    function esc(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+    function csvCell(s){ const v=(s==null?"":String(s)).replace(/"/g,'""'); return /[",\n]/.test(v) ? '"'+v+'"' : v; }
+    function downloadBlob(content, filename, mime){
+      const blob = new Blob(["\uFEFF"+content], {type:mime || "text/plain;charset=utf-8;"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename || "download.txt";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    function gather(){
+      const u = curUser();
+      if (!u) { showMsg("请先登录账号再备份。", "err"); return null; }
+      const prefix = "user:" + u + ":";
+      const data = {};
+      for (let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if (EXCLUDE.has(k)) continue;
+        if (k.indexOf(prefix) !== 0) continue; // 只收当前账号
+        data[k] = localStorage.getItem(k);
+      }
+      return data;
+    }
+    document.getElementById("btnDataMgr").onclick = () => { modal.style.display = "flex"; msg.textContent=""; preview.style.display="none"; };
+    document.getElementById("btnCloseModal").onclick = () => { modal.style.display = "none"; };
+    modal.addEventListener("click", e => { if (e.target === modal) modal.style.display = "none"; });
+    document.getElementById("btnExport").onclick = () => {
+      const data = gather();
+      if (!data) return;
+      const payload = { app:"kaoyan-study-center", version:2, exportedAt:new Date().toISOString(), origin:location.origin, user:curUser(), data };
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+      a.href = url; a.download = `考研学习中心备份-${curUser()}-${ts}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      showMsg(`已导出【${curUser()}】的备份，包含 ${Object.keys(data).length} 个数据项。`, "ok");
+    };
+    function uget(key){ return localStorage.getItem("user:" + curUser() + ":" + key); }
+    document.getElementById("btnExportVocab").addEventListener("click", () => {
+      try {
+        const u = curUser(); if(!u){ showMsg("请先登录账号。", "err"); return; }
+        showMsg("正在准备词汇表…", "ok");
+        let raw = uget("vocab-quiz-data-v1");
+        let vocab = []; 
+        try{ vocab = JSON.parse(raw || "[]"); }catch(e){ showMsg("词汇数据解析失败：" + e.message, "err"); return; }
+        if(!Array.isArray(vocab)){ showMsg("词汇数据格式不是数组，无法导出。", "err"); return; }
+        if(!vocab.length){ showMsg("当前账号没有词汇数据。", "err"); return; }
+        // 英语中心词汇库实际存的是二维数组（按 COLS 顺序），需先 normalize 成对象
+        const VOCAB_COLS = ["word","meaning","familiar","firstArticle","count","articles","wrong","learnDate","nextReview","history","transCount"];
+        const normalizeVocabRow = (r) => {
+          if(Array.isArray(r)){
+            const o = {};
+            VOCAB_COLS.forEach((c, i) => o[c] = String(r[i] ?? "").trim());
+            o.count = parseInt(o.count, 10) || 0;
+            o.wrong = parseInt(o.wrong, 10) || 0;
+            o.transCount = parseInt(o.transCount, 10) || 0;
+            return o;
+          }
+          if(r && typeof r === "object"){
+            const word = String(r.word || r.en || r.term || "").trim();
+            const meaning = String(r.meaning || r.cn || r.def || "").trim();
+            return { ...r, word, meaning, count: parseInt(r.count,10)||0, wrong: parseInt(r.wrong,10)||0, transCount: parseInt(r.transCount,10)||0 };
+          }
+          return {};
+        };
+        const valid = vocab.map(normalizeVocabRow).filter(o => o.word || o.meaning);
+        if(!valid.length){ showMsg(`词汇库共 ${vocab.length} 条，但没有有效（含单词或释义）条目。`, "err"); return; }
+        const styles = `
+          body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f8fafc;padding:20px;color:#1f2733;}
+          .wrap{max-width:1100px;margin:0 auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(31,39,51,.08);}
+          h1{font-size:22px;margin:0 0 6px;} .sub{color:#7a869a;font-size:13px;margin-bottom:18px;}
+          table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;}
+          th,td{border:1px solid #e6e9f0;padding:10px 12px;text-align:left;vertical-align:top;}
+          th{background:#f1f5f9;font-weight:700;position:sticky;top:0;}
+          tr:nth-child(even){background:#fafbfc;}
+          .num{color:#94a3b8;text-align:center;width:40px;}
+          .word{font-weight:800;color:#1f2733;font-size:14px;}
+          .phonetic{color:#64748b;font-weight:400;}
+          .pos{display:inline-block;background:#eef2ff;color:#4f46e5;padding:1px 8px;border-radius:10px;font-size:12px;margin-right:6px;}
+          .meaning{color:#334155;line-height:1.6;}
+          .familiar{color:#166534;background:#dcfce7;padding:2px 8px;border-radius:8px;font-size:12px;}
+          .stats{color:#64748b;font-size:12px;white-space:nowrap;}
+          .btn{display:inline-block;background:#6366f1;color:#fff;padding:8px 16px;border-radius:10px;text-decoration:none;font-size:13px;}
+          @media print{.btn{display:none;} body{background:#fff;} .wrap{box-shadow:none;} th{background:#f1f5f9!important;}}
+        `;
+        let rows = valid.map((o, i) => {
+          const posMatch = (o.meaning.match && o.meaning.match(/^[a-zA-Z.]+/)) || [""];
+          const pos = String(posMatch[0] || "").trim();
+          const meaning = String(o.meaning || "").replace(new RegExp("^" + (pos ? pos.replace(/[.*+?^${}()|[\]\\]/g, "\\$") : "") + "\\s*"), "").trim();
+          return `<tr>
+            <td class="num">${i+1}</td>
+            <td class="word">${esc(o.word || "（未填写）")}<br><span class="phonetic">${esc(o.phonetic || "")}</span></td>
+            <td><span class="pos">${esc(pos || "未标注")}</span><div class="meaning">${esc(meaning || "（未填写释义）")}</div>${o.familiar ? `<div class="familiar">熟词生义：${esc(o.familiar)}</div>` : ""}</td>
+            <td class="stats">译次 ${o.transCount || 0}<br>错次 ${o.wrong || 0}</td>
+            <td class="stats">${o.addedAt || o.added || o.learnDate || "-"}<br>${o.lastReview || o.reviewedAt || "-"}</td>
+          </tr>`;
+        }).join("");
+        let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>词汇表-${u}</title><style>${styles}</style></head><body><div class="wrap">
+          <h1>📄 考研词汇表 · ${u}</h1>
+          <div class="sub">生成时间：${new Date().toLocaleString()} · 共 ${valid.length} 个有效词汇${vocab.length > valid.length ? `（已过滤 ${vocab.length - valid.length} 条空记录）` : ""}</div>
+          <a href="javascript:window.print()" class="btn">🖨️ 打印 / 另存为 PDF</a>
+          <table>
+            <thead><tr><th class="num">#</th><th>单词</th><th>释义</th><th>次数</th><th>加入/复习</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="sub">— 共 ${valid.length} 词 —</div>
+        </div></body></html>`;
+        const w = window.open("", "_blank");
+        if(w){ w.document.write(html); w.document.close(); showMsg("已在新窗口打开词汇表，可打印或保存为 PDF。", "ok"); }
+        else { showMsg("弹窗被拦截，请允许后重试。", "err"); }
+      } catch(err) {
+        showMsg("导出词汇表出错：" + (err && err.message || err), "err");
+        console.error("export vocab error", err);
+      }
+    });
+    document.getElementById("btnExportWrong").addEventListener("click", () => {
+      try {
+        const u = curUser(); if(!u){ showMsg("请先登录账号。", "err"); return; }
+        showMsg("正在准备错题本…", "ok");
+        let wrong = {}; try{ wrong = JSON.parse(uget("mathDailyWrong_v1") || "{}"); }catch(e){ wrong={}; }
+        let bank = []; try{ bank = JSON.parse(uget("mathAutoBank_v1") || "[]"); }catch(e){ bank=[]; }
+        const wrongList = bank.filter(t => t.weak || t.res !== "✅");
+        const days = Object.keys(wrong).sort().reverse();
+        const totalItems = days.reduce((sum, d) => sum + (wrong[d] || []).length, 0) + wrongList.length;
+        const styles = `
+          body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f8fafc;padding:20px;color:#1f2733;}
+          .wrap{max-width:960px;margin:0 auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(31,39,51,.08);}
+          h1{font-size:22px;margin:0 0 6px;} .sub{color:#7a869a;font-size:13px;margin-bottom:18px;}
+          .card{border:1px solid #e6e9f0;border-radius:14px;padding:16px 18px;margin-bottom:16px;page-break-inside:avoid;}
+          .head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;}
+          .date{font-size:12px;color:#64748b;}
+          .no{font-size:13px;font-weight:700;color:#334155;}
+          .kp{display:inline-block;background:#e8f4ff;color:#1971c2;padding:2px 10px;border-radius:12px;font-size:12px;}
+          .diff{display:inline-block;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:12px;}
+          .label{font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;}
+          .q{color:#1f2733;line-height:1.7;margin-bottom:10px;}
+          .a{color:#334155;background:#f8fafc;border-radius:8px;padding:12px;line-height:1.7;}
+          .empty{color:#94a3b8;text-align:center;padding:40px;}
+          .btn{display:inline-block;background:#6366f1;color:#fff;padding:8px 16px;border-radius:10px;text-decoration:none;font-size:13px;}
+          @media print{.btn{display:none;} body{background:#fff;} .wrap{box-shadow:none;}}
+        `;
+        let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>错题本-${u}</title>` +
+          `<script>window.MathJax = { tex: { inlineMath: [["$","$"], ["\\\\(","\\\\)"]], displayMath: [["$$","$$"], ["\\\\[","\\\\]"]], processEscapes: true }, options: { skipHtmlTags: ["script","noscript","style","textarea","pre","code"] } };<\/script>` +
+          `<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script>` +
+          `<style>${styles}</style></head><body><div class="wrap">
+          <h1>📝 数学错题本 · ${u}</h1>
+          <div class="sub">生成时间：${new Date().toLocaleString()} · 共 ${totalItems} 道错题 / 薄弱题</div>
+          <a href="javascript:window.print()" class="btn">🖨️ 打印 / 另存为 PDF</a>`;
+        let count = 0;
+        if(days.length){
+          html += `<div class="label">按日期记录</div>`;
+          days.forEach(d => {
+            (wrong[d] || []).forEach(item => {
+              count++;
+              html += `<div class="card">
+                <div class="head">
+                  <span class="date">${d}</span>
+                  <span class="no">${esc(item.no)}</span>
+                  <span class="kp">${esc(item.kp)}</span>
+                </div>
+                <div class="q"><span class="label">题干</span><br>${esc(item.q)}</div>
+                <div class="a"><span class="label">答案 / 解析</span><br>${esc(item.a)}</div>
+              </div>`;
+            });
+          });
+        }
+        if(wrongList.length){
+          html += `<div class="label" style="margin-top:18px;">题库薄弱题</div>`;
+          wrongList.forEach(t => {
+            count++;
+            html += `<div class="card">
+              <div class="head">
+                <span class="no">${esc(t.no)}</span>
+                <span class="kp">${esc(t.kp)}</span>
+                <span class="diff">${esc(t.diff)}</span>
+              </div>
+              <div class="q"><span class="label">题干</span><br>${esc(t.q)}</div>
+              <div class="a"><span class="label">答案 / 解析</span><br>${esc(t.a)}</div>
+            </div>`;
+          });
+        }
+        if(!count) html += `<div class="empty">当前账号暂无错题或薄弱题。</div>`;
+        html += `</div></body></html>`;
+        const w = window.open("", "_blank");
+        if(w){
+          w.document.write(html);
+          w.document.close();
+          const tryTypeset = (retries=0) => {
+            if(w.MathJax && w.MathJax.typesetPromise){
+              try { w.MathJax.typesetPromise(); }catch(e){}
+            } else if(retries < 60) {
+              setTimeout(() => tryTypeset(retries+1), 250);
+            }
+          };
+          tryTypeset();
+          showMsg("已在新窗口打开错题本，可打印或保存为 PDF。", "ok");
+        }
+        else { showMsg("弹窗被拦截，请允许后重试。", "err"); }
+      } catch(err) {
+        showMsg("导出错题本出错：" + (err && err.message || err), "err");
+        console.error("export wrong book error", err);
+      }
+    });
+    document.getElementById("btnImport").onclick = () => document.getElementById("fileImport").click();    document.getElementById("btnImport").onclick = () => document.getElementById("fileImport").click();
+    document.getElementById("fileImport").onchange = e => {
+      const f = e.target.files[0];
+      if (f) importBackup(f);
+      e.target.value = "";
+    };
+    function importBackup(file){
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const payload = JSON.parse(ev.target.result);
+          if (payload.app !== "kaoyan-study-center" || !payload.data){ showMsg("文件格式不正确，不是有效的备份文件。", "err"); return; }
+          const u = curUser();
+          if (!u) { showMsg("请先登录账号再导入。", "err"); return; }
+          const keys = Object.keys(payload.data);
+          const hasKey = keys.some(k => k === "deepseek-api-key" || /^user:[^:]+:deepseek-api-key$/.test(k));
+          preview.style.display = "block";
+          preview.innerHTML =
+            `将把 <b>${keys.length}</b> 个数据项恢复到账号【${u}】` + (hasKey ? `（<span style="color:#dc2626">含 API Key</span>）` : ``) +
+            `。<br>同名数据将被覆盖。<br><br>` +
+            `<button id="btnConfirmImport" class="btn-primary">确认恢复</button> ` +
+            `<button id="btnCancelImport" class="btn-default">取消</button>`;
+          document.getElementById("btnConfirmImport").onclick = () => {
+            for (const k in payload.data) {
+              let target = k;
+              const m = /^user:([^:]+):(.+)$/.exec(k);
+              if (m) target = "user:" + u + ":" + m[2]; // 个人数据重归当前账号
+              localStorage.setItem(target, payload.data[k]);
+            }
+            preview.style.display = "none";
+            showMsg("恢复完成！正在重新加载页面…", "ok");
+            setTimeout(() => location.reload(), 900);
+          };
+          document.getElementById("btnCancelImport").onclick = () => { preview.style.display = "none"; };
+        } catch (err) { showMsg("解析失败：" + err.message, "err"); }
+      };
+      reader.readAsText(file);
+    }
+  })();
+</script>
+<script src="./sync-gist.js"></script>
+<div class="tip">☁️ 跨设备同步：右下角云朵按钮输入 GitHub Token，按当前登录账号分别上传/下载。每个账号数据独立存放。</div>
+</body>
+</html>

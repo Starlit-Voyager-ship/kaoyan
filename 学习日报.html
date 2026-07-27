@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <script src="./account.js"></script>
+  <script src="./sync-gist.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学习日报 · 考研学习中心</title>
+<link rel="stylesheet" href="./theme.css">
+<style>
+  :root {
+    --bg: #eef1f6; --card: #ffffff; --text: #1f2733; --muted: #7a869a;
+    --border: #e6e9f0; --primary: #6366f1; --primary-d: #4f46e5;
+    --eng: #0ea5e9; --math: #f59e0b; --success: #16a34a; --danger: #dc2626;
+    --art: #ec4899; --warn: #f97316;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    background:linear-gradient(160deg,var(--bg),#e3e8f0); color:var(--text); min-height:100vh; }
+  .container { max-width:1100px; margin:0 auto; padding:22px 18px 44px; }
+  .page-head { background:linear-gradient(135deg,#6366f1,#0ea5e9); color:#fff; border-radius:18px;
+    padding:20px 26px; box-shadow:0 10px 30px rgba(99,102,241,.25); display:flex; align-items:center; gap:14px; }
+  .page-head .logo { font-size:30px; }
+  .page-head h1 { margin:0; font-size:24px; letter-spacing:1px; }
+  .page-head .sub { margin-top:5px; font-size:13.5px; opacity:.92; }
+
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0; }
+  .btn { border:1px solid var(--border); background:var(--card); color:var(--text);
+    padding:9px 16px; border-radius:12px; cursor:pointer; font-size:14px; font-weight:700; }
+  .btn:hover { border-color:var(--primary); }
+  .btn.primary { background:linear-gradient(135deg,#6366f1,#0ea5e9); color:#fff; border-color:transparent; }
+  .btn.ghost { background:transparent; }
+  .btn.active { background:var(--primary); color:#fff; border-color:transparent; }
+  .btn.warn { background:linear-gradient(135deg,#f97316,#fb923c); color:#fff; border-color:transparent; }
+  .datepick { padding:8px 12px; border:1px solid var(--border); border-radius:12px; font-size:14px; font-weight:700; color:var(--text); background:var(--card); }
+  #status { font-size:13px; color:var(--muted); margin-left:auto; }
+
+  .hero { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:20px 24px;
+    margin-bottom:18px; box-shadow:0 6px 20px rgba(31,39,51,.06); }
+  .hero .day { font-size:14px; color:var(--muted); font-weight:700; }
+  .hero .line { font-size:16.5px; line-height:1.85; margin-top:8px; }
+  .hero .line b { color:var(--primary-d); }
+  .bars { display:flex; gap:10px; margin-top:16px; }
+  .bar { flex:1; background:#f3f5fb; border-radius:12px; padding:12px 14px; }
+  .bar .t { font-size:13px; color:var(--muted); font-weight:700; display:flex; align-items:center; gap:6px; }
+  .bar .v { font-size:22px; font-weight:800; margin-top:4px; }
+  .bar.eng .v { color:var(--eng); } .bar.math .v { color:var(--math); } .bar.art .v { color:var(--art); }
+  .bar .track { height:6px; background:#e6e9f0; border-radius:6px; margin-top:8px; overflow:hidden; }
+  .bar .fill { height:100%; border-radius:6px; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:760px){ .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:18px 20px; box-shadow:0 6px 20px rgba(31,39,51,.06); }
+  .card h2 { margin:0 0 12px; font-size:18px; display:flex; align-items:center; gap:8px; }
+  .card .tag { font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; color:#fff; display:inline-block; margin-left:auto; }
+  .tag.eng { background:var(--eng); } .tag.math { background:var(--math); }
+  .stat-row { display:flex; gap:12px; margin:14px 0 6px; flex-wrap:wrap; }
+  .stat { background:#f6f8fc; border-radius:12px; padding:10px 14px; min-width:78px; text-align:center; flex:1; }
+  .stat .num { font-size:23px; font-weight:800; }
+  .stat .lab { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .num.g { color:var(--success); } .num.b { color:var(--danger); } .num.p { color:var(--primary-d); } .num.o { color:var(--art); }
+  .sub-h { font-size:13px; color:var(--muted); margin:13px 0 5px; font-weight:700; display:flex; align-items:center; gap:5px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { background:#eef2ff; color:#4338ca; border-radius:8px; padding:4px 9px; font-size:12px; }
+  .chip.k { background:#fef3c7; color:#92400e; }
+  .chip.a { background:#fce7f3; color:#9d174d; }
+  .chip.w { background:#fee2e2; color:#991b1b; }
+  .chip.r { background:#dcfce7; color:#166534; }
+  .chip.y { background:#f3e8ff; color:#6b21a8; }
+  .chip.c { background:#ecfeff; color:#155e75; }
+  .chip.g { background:#f0fdf4; color:#166534; }
+  .empty { color:var(--muted); font-size:13.5px; padding:10px 0; }
+  .topics { font-size:13px; color:var(--text); line-height:1.9; }
+  .ring-wrap { display:flex; align-items:center; gap:14px; margin:6px 0 4px; }
+  .ring { transform:rotate(-90deg); }
+  .ring .bg { fill:none; stroke:#eef0f6; }
+  .ring .fg { fill:none; stroke:var(--success); stroke-linecap:round; transition:stroke-dashoffset .6s; }
+  .ring-txt { font-size:14px; color:var(--muted); }
+  .ring-txt b { font-size:20px; color:var(--success); }
+  .encourage { margin-top:14px; font-size:14px; color:var(--primary-d); background:#eef0ff; border-radius:12px; padding:10px 14px; }
+  .note { font-size:12px; color:var(--muted); margin-top:16px; line-height:1.7; }
+
+  .list { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+  .item { background:#f8fafc; border-radius:12px; padding:12px 14px; border-left:3px solid var(--border); }
+  .item.wrong { border-left-color:var(--danger); background:#fff5f5; }
+  .item .head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .item .title { font-weight:700; font-size:14px; }
+  .item .meta { font-size:12px; color:var(--muted); margin-top:4px; }
+  .item .why { font-size:13px; color:var(--text); margin-top:6px; line-height:1.6; }
+  .tang { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; color:#fff; }
+  .tang.detail { background:#3b82f6; }
+  .tang.main { background:#8b5cf6; }
+  .tang.infer { background:#f59e0b; }
+  .tang.word { background:#ec4899; }
+  .tang.example { background:#06b6d4; }
+  .tang.attitude { background:#16a34a; }
+  .tang-label { font-size:11px; color:var(--muted); margin-left:auto; }
+  .art-title { font-size:14px; font-weight:800; color:var(--primary-d); margin-bottom:6px; }
+  .prompt-box { background:#fff7ed; border:1px dashed #fdba74; border-radius:12px; padding:12px 14px; margin-top:10px; }
+  .prompt-box code { background:#fff; padding:2px 6px; border-radius:6px; font-size:13px; color:var(--warn); }
+  .sync-tip { font-size:12px; color:var(--muted); margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="page-head">
+    <div class="logo">📊</div>
+    <div>
+      <h1>学习日报</h1>
+      <div class="sub">英语 · 数学 双科当日学习记录 · AI 自动整理</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn primary" id="genBtn" onclick="generateTodayReport()">🤖 生成今日日报</button>
+    <button class="btn warn" id="weekBtn" onclick="generateWeekReport()">📅 生成周总结</button>
+    <select id="weekSelect" class="datepick" style="margin-left:6px;min-width:150px;" onchange="onWeekSelectChange()">
+      <option value="">📅 查看过往周总结</option>
+    </select>
+    <button class="btn ghost active" id="dToday" onclick="setDay('today')">📅 今日</button>
+    <button class="btn ghost" id="dYest" onclick="setDay('yest')">⏪ 昨日</button>
+    <input type="date" class="datepick" id="dPick" onchange="setDay('pick')">
+    <span id="status">正在读取日报数据…</span>
+  </div>
+
+  <div class="hero">
+    <div class="day" id="heroDay">—</div>
+    <div class="line" id="heroLine">日报由小歌/小诗根据当天聊天记录自动整理，无需手动填写。</div>
+    <div class="bars" id="heroBars" style="display:none;">
+      <div class="bar eng"><div class="t">📘 背单词</div><div class="v" id="bEng">0</div><div class="track"><div class="fill" id="fEng" style="background:var(--eng);width:0%"></div></div></div>
+      <div class="bar math"><div class="t">📐 做题</div><div class="v" id="bMath">0</div><div class="track"><div class="fill" id="fMath" style="background:var(--math);width:0%"></div></div></div>
+      <div class="bar art"><div class="t">📖 精读</div><div class="v" id="bArt">0</div><div class="track"><div class="fill" id="fArt" style="background:var(--art);width:0%"></div></div></div>
+    </div>
+  </div>
+
+  <div class="hero" id="weekHero" style="display:none;">
+    <div class="day"><span id="weekDayText">—</span><button id="weekDelBtn" class="btn ghost" style="float:right;padding:4px 10px;font-size:12px" onclick="deleteWeekReport()">🗑 删除此周总结</button></div>
+    <div class="line" id="weekLine">点击「📅 生成周总结」汇总最近 7 天学习情况，或从右侧下拉选择过往周总结。</div>
+    <div class="encourage" id="weekEnc" style="display:none;margin-top:12px;">继续加油，稳步前进！</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>🇬🇧 英语 <span class="tag eng">词汇 · 阅读</span></h2>
+      <div id="engSummary"></div>
+    </div>
+    <div class="card">
+      <h2>📐 数学 <span class="tag math">线代 · 高数</span></h2>
+      <div id="mathSummary"></div>
+    </div>
+  </div>
+
+  <div class="note">
+    日报按<b>当前登录账号</b>独立统计：英语（新词/复习/精读）与数学（做题/错题/巩固）均从你账号的本地学习数据实时计算，两人互不可见。
+    数据每 30 分钟自动同步到你的 private Gist；<b>每晚 19:30</b> 由助理自动汇总生成当日日报、<b>每周日 19:30</b> 生成周总结并写回 Gist，次日打开网页即可看到（电脑需开机）。
+    你也可以随时点「🤖 生成今日日报」/「📅 生成周总结」主动生成，结果同样只存本账号、仅自己可见；右侧下拉可调取过往周总结。
+  </div>
+</div>
+
+<script>
+let currentDay = "today";
+let currentData = null;
+
+const TANG_TYPES = {
+  detail:   { label: "细节题", color: "detail" },
+  main:     { label: "主旨题", color: "main" },
+  infer:    { label: "推理题", color: "infer" },
+  word:     { label: "词义题", color: "word" },
+  example:  { label: "例证题", color: "example" },
+  attitude: { label: "态度题", color: "attitude" }
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function fmtDay(d){
+  const wd=["周日","周一","周二","周三","周四","周五","周六"][d.getDay()];
+  const p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+wd;
+}
+function rawDate(){
+  const d=new Date();
+  if(currentDay==="yest") d.setDate(d.getDate()-1);
+  else if(currentDay && currentDay!=="today"){ const p=currentDay.split("-"); d.setFullYear(+p[0],+p[1]-1,+p[2]); }
+  const p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function displayDay(){ return fmtDay(new Date(rawDate()+"T00:00:00")); }
+
+function currentUser(){ return (window.getCurrentUser && window.getCurrentUser()) || ""; }
+
+function dataPath(day){
+  return "学习日报数据/" + day + ".json";
+}
+
+// 从 Gist 读取当前账号的 dailyReport_<day>（来自夜间自动化生成）
+async function loadReportFromGist(day){
+  try{
+    const u = currentUser();
+    if(!u || !window.KaoyanSync) return null;
+    const token = window.KaoyanSync.getToken();
+    if(!token) return null;
+    const obj = await window.KaoyanSync.loadGistObj(token);
+    if(!obj) return null;
+    const raw = obj["user:" + u + ":dailyReport_" + day];
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+// 从 Gist 读取当前账号的 weeklyReport_<weekStart>
+async function loadWeekReportFromGist(weekStart){
+  try{
+    const u = currentUser();
+    if(!u || !window.KaoyanSync) return null;
+    const token = window.KaoyanSync.getToken();
+    if(!token) return null;
+    const obj = await window.KaoyanSync.loadGistObj(token);
+    if(!obj) return null;
+    const raw = obj["user:" + u + ":weeklyReport_" + weekStart];
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+// 取两者中 updatedAt 较新者
+function pickLatest(a, b){
+  if(!a) return b;
+  if(!b) return a;
+  const ta = a.updatedAt || 0, tb = b.updatedAt || 0;
+  return tb >= ta ? b : a;
+}
+
+// 读取日报数据源：① 当前账号本地保存的 AI 总结（隔离）；② Gist 上夜间自动化生成的日报（按 updatedAt 取最新）；③ 旧版共享 JSON（仅主人回退兼容）
+async function loadReport(day){
+  const u = currentUser();
+  let per = null;
+  try { const r = uStorage.getItem("dailyReport_" + day); if (r) per = JSON.parse(r); } catch(e){}
+  let shared = null;
+  try {
+    const owner = localStorage.getItem("kaoyan-owner-user") || "";
+    const r = await fetch(dataPath(day), { cache: "no-store" });
+    if (r.ok) shared = await r.json();
+    if (shared && u && (u === owner || !owner)) {
+      if (!owner) localStorage.setItem("kaoyan-owner-user", u);
+      if (!per || !per.summary || !per.encouragement) {
+        const toSave = Object.assign({}, per || {});
+        if (shared.summary && !toSave.summary) toSave.summary = shared.summary;
+        if (shared.encouragement && !toSave.encouragement) toSave.encouragement = shared.encouragement;
+        uStorage.setItem("dailyReport_" + day, JSON.stringify(toSave));
+        per = toSave;
+      }
+    }
+  } catch(e){}
+  // 优先采用 Gist 上夜间自动化生成的日报（按 updatedAt 取最新）
+  const gistPer = await loadReportFromGist(day);
+  const chosen = pickLatest(per, gistPer);
+  return { per: chosen, shared };
+}
+
+const VOCAB_COLS = ["word","meaning","familiar","firstArticle","count","articles","wrong","learnDate","nextReview","history","transCount"];
+function parseVocabRow(arr){
+  const o = {};
+  VOCAB_COLS.forEach((c, i) => o[c] = String(arr[i] ?? "").trim());
+  o.count = parseInt(o.count, 10) || 0;
+  o.wrong = parseInt(o.wrong, 10) || 0;
+  o.transCount = parseInt(o.transCount, 10) || 0;
+  return o;
+}
+function loadVocab(){
+  try{
+    const raw = uStorage.getItem("vocab-quiz-data-v1");
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.map(r => parseVocabRow(Array.isArray(r) ? r : VOCAB_COLS.map(c => r[c] || "")));
+  }catch(e){ return []; }
+}
+function isDue(o, day){ return !o.nextReview || o.nextReview <= day; }
+// 从当前账号 localStorage 计算英语当日数据（完全隔离，不依赖共享文件）
+function computeEngLocal(day){
+  const vocab = loadVocab();
+  const wkey = o => o.word || o.en || o.term || "";
+
+  // 今日查词/测试记录（用于判断“今天是否测试到”）
+  let logWords = [];
+  try {
+    const log = JSON.parse(uStorage.getItem("my-word-lookup-log")||"[]")||[];
+    logWords = log.filter(x => x.date === day).map(x => x.word);
+  } catch(e){}
+  const logSet = new Set(logWords);
+
+  // 今日是否答错：history 字段格式如 "2026-07-25:错"
+  function isWrongToday(o){
+    return (o.history || "").split(";").some(h => h.trim().startsWith(day + ":错"));
+  }
+
+  // 新口径：
+  // 1. 新学词汇：今天首次入库（learnDate===day 且只出现 1 次）
+  // 2. 复习词汇：库中已有（learnDate!==day）且今天被查/测到
+  // 3. 错词：今天答错（history 含 "day:错"）
+  // 4. 重点词汇：今天入库但已出现 2 次及以上（learnDate===day 且 transCount>=2）
+  const newWords = vocab.filter(o => o.learnDate === day && o.transCount === 1).map(wkey);
+  const review = vocab.filter(o => o.learnDate !== day && logSet.has(wkey(o))).map(wkey);
+  const wrongWords = vocab.filter(o => isWrongToday(o)).map(wkey);
+  const keyWords = vocab.filter(o => o.learnDate === day && o.transCount >= 2).map(wkey);
+
+  // 当日文章
+  let articles = [];
+  try {
+    const all = JSON.parse(uStorage.getItem("articlesExtra_v1")||"[]")||[];
+    articles = all.filter(a => a.meta && a.meta.d0 === day).map(a => {
+      const qs = (a.questions||[]).filter(q => q.isWrong).map(q => ({ no:q.no, tangType:q.tangType||"", type:q.type||"", why:q.why||"" }));
+      return { title: a.title || "(未命名文章)", words: [], wrongQuestions: qs };
+    });
+  } catch(e){}
+  return { newWords, review, key: keyWords, wrong: wrongWords, articles };
+}
+
+// 从当前账号 localStorage 计算数学当日数据（含错题、巩固，完全隔离）
+function computeMathLocal(day){
+  let bank=[]; try{ bank=JSON.parse(uStorage.getItem("mathAutoBank_v1")||"[]")||[]; }catch(e){}
+  const dayItems = bank.filter(o => o.date === day);
+  const correct = dayItems.filter(o=>o.res==="✅").length;
+  const wrongItems = dayItems.filter(o=>o.res==="❌");
+  const wrong = wrongItems.length;
+  const groups = new Set(dayItems.map(o=>o.from||"练习")).size;
+  const topics = Array.from(new Set(dayItems.map(o=>o.kp).filter(Boolean)));
+  const wrongDetails = wrongItems.map(o=>({ topic:o.kp||"未分类考点", reason:o.note||"" }));
+  let resolved=0, resolvedTopics=[];
+  try{ const r=JSON.parse(uStorage.getItem("mathWeakResolved_v1")||"{}")||{}; const arr=Array.isArray(r[day])?r[day]:[]; resolved=arr.length; arr.forEach(x=>(x.kpTags||[]).forEach(t=>resolvedTopics.push(t))); }catch(e){}
+  return { groups: groups||(dayItems.length?1:0), correct, wrong, topics, wrongDetails, resolved, resolvedTopics: Array.from(new Set(resolvedTopics)) };
+}
+
+function liveSummary(e,m){
+  const parts=[];
+  if(e.newWords.length) parts.push(`背了 ${e.newWords.length} 个新词`);
+  if(e.review.length) parts.push(`复习 ${e.review.length} 个`);
+  if(e.key.length) parts.push(`重点词 ${e.key.length} 个`);
+  if(e.wrong.length) parts.push(`错词 ${e.wrong.length} 个`);
+  if(e.articles.length) parts.push(`精读 ${e.articles.length} 篇`);
+  if(m.groups||m.correct||m.wrong) parts.push(`数学 ${m.correct} 对 ${m.wrong} 错`);
+  return parts.length ? ("今天"+parts.join("、")+"。") : "今天还没有学习记录，去学习一下吧 🌿";
+}
+
+function ringSVG(pct){
+  const r=26, c=2*Math.PI*r, off=c*(1-pct/100);
+  const col = pct>=80? "var(--success)" : pct>=50? "var(--math)" : "var(--danger)";
+  return `<svg class="ring" width="64" height="64" viewBox="0 0 64 64">
+    <circle class="bg" cx="32" cy="32" r="${r}" stroke-width="7"></circle>
+    <circle class="fg" cx="32" cy="32" r="${r}" stroke-width="7" stroke="${col}"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"></circle>
+  </svg>`;
+}
+function chips(arr,cls){
+  if(!arr || !arr.length) return '<div class="empty" style="padding:6px 0">没有记录</div>';
+  return '<div class="chips">'+arr.map(w=>`<span class="chip ${cls||''}">${esc(w)}</span>`).join("")+'</div>';
+}
+function tangBadge(type){
+  const t = TANG_TYPES[type] || { label: type, color: "detail" };
+  return `<span class="tang ${t.color}">${esc(t.label)}</span>`;
+}
+
+function renderEngSummary(e){
+  const b=$("engSummary");
+  if(!e || (!e.newWords.length && !e.review.length && !e.key.length && !e.wrong.length && !e.articles.length)){
+    b.innerHTML='<div class="empty" style="margin-top:10px">今天还没有英语记录。</div>';
+    return;
+  }
+  b.innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="num p">${e.newWords.length}</div><div class="lab">🆕 新词</div></div>
+      <div class="stat"><div class="num g">${e.review.length}</div><div class="lab">🔁 复习</div></div>
+      <div class="stat"><div class="num b">${e.key.length}</div><div class="lab">⭐ 重点</div></div>
+      <div class="stat"><div class="num r">${e.wrong.length}</div><div class="lab">❌ 错词</div></div>
+      <div class="stat"><div class="num o">${e.articles.length}</div><div class="lab">📖 精读</div></div>
+    </div>
+    <div class="sub-h">🆕 新词</div>${chips(e.newWords)}
+    <div class="sub-h">🔁 复习</div>${chips(e.review,"r")}
+    <div class="sub-h">⭐ 重点词</div>${chips(e.key,"w")}
+    ${e.wrong.length ? `<div class="sub-h">❌ 错词</div>${chips(e.wrong,"w")}` : ''}
+    <div class="sub-h">📖 精读与错题</div>
+    ${e.articles.length ? e.articles.map(a=>`
+      <div class="item">
+        <div class="art-title">${esc(a.title)}</div>
+        <div class="chips">${(a.words||[]).map(w=>`<span class="chip a">${esc(w)}</span>`).join("")}</div>
+        ${a.wrongQuestions && a.wrongQuestions.length ? `
+          <div class="sub-h" style="margin-top:10px">错题分析</div>
+          <div class="list">
+            ${a.wrongQuestions.map(q=>`
+              <div class="item wrong">
+                <div class="head">
+                  <span class="title">第 ${esc(String(q.no))} 题</span>
+                  ${tangBadge(q.tangType)}
+                  <span class="tang-label">唐迟题型</span>
+                </div>
+                <div class="meta">错误类型：${esc(q.type)}</div>
+                <div class="why">${esc(q.why)}</div>
+              </div>
+            `).join("")}
+          </div>
+        ` : '<div class="meta" style="margin-top:6px">无错题 🎉</div>'}
+      </div>
+    `).join("") : '<div class="empty">没有精读文章</div>'}`;
+}
+
+function renderMathSummary(m){
+  const b=$("mathSummary");
+  if(!m || (m.groups===0 && m.correct===0 && m.wrong===0 && !m.topics.length)){
+    b.innerHTML='<div class="empty" style="margin-top:10px">今天还没有数学记录。</div>';
+    return;
+  }
+  const total=m.correct+m.wrong, pct= total? Math.round(m.correct/total*100):0;
+  b.innerHTML = `
+    <div class="ring-wrap">
+      ${ringSVG(pct)}
+      <div class="ring-txt">正确率<br><b>${pct}%</b><br><span style="font-size:12px;">(${m.correct} 对 / ${m.wrong} 错)</span></div>
+      <div class="stat-row" style="flex:1;margin:0;">
+        <div class="stat"><div class="num p">${m.groups}</div><div class="lab">📝 组</div></div>
+        <div class="stat"><div class="num g">${m.correct}</div><div class="lab">✅ 对</div></div>
+        <div class="stat"><div class="num b">${m.wrong}</div><div class="lab">❌ 错</div></div>
+        <div class="stat"><div class="num p">${m.resolved||0}</div><div class="lab">🎯 巩固</div></div>
+      </div>
+    </div>
+    <div class="sub-h">🎯 考点</div>${chips(m.topics,"k")}
+    ${m.resolved ? `
+      <div class="sub-h">🎯 今日巩固薄弱点</div>
+      <div class="list">
+        ${(m.resolvedTopics||[]).map(t=>`<div class="item"><div class="head"><span class="title">${esc(t)}</span></div></div>`).join("")}
+      </div>
+    ` : ''}
+    ${m.wrongDetails && m.wrongDetails.length ? `
+      <div class="sub-h">❌ 错题分析</div>
+      <div class="list">
+        ${m.wrongDetails.map(w=>`
+          <div class="item wrong">
+            <div class="head"><span class="title">${esc(w.topic)}</span></div>
+            <div class="why">${esc(w.reason)}</div>
+          </div>
+        `).join("")}
+      </div>
+    ` : ''}`;
+}
+
+function renderSummary(data){
+  const day = displayDay();
+  $("heroDay").textContent = day + "　学习情况";
+  const bars=$("heroBars");
+  const e = data && data.eng ? data.eng : { newWords:[], review:[], key:[], wrong:[], articles:[] };
+  const m = data && data.math ? data.math : { groups:0, correct:0, wrong:0, topics:[] };
+  const engAct = e.newWords.length + e.review.length + e.key.length + e.wrong.length;
+  const mathAct = m.groups;
+  const artAct = e.articles.length;
+  const maxv = Math.max(engAct, mathAct, artAct, 1);
+  $("bEng").textContent=engAct; $("fEng").style.width=(engAct/maxv*100)+"%";
+  $("bMath").textContent=mathAct; $("fMath").style.width=(mathAct/maxv*100)+"%";
+  $("bArt").textContent=artAct; $("fArt").style.width=(artAct/maxv*100)+"%";
+
+  if(data && data.summary){
+    $("heroLine").innerHTML = data.summary;
+  } else {
+    $("heroLine").innerHTML = "今天还没有生成日报，点击下方「生成今日日报」让 AI 自动整理。";
+  }
+  bars.style.display = (engAct || mathAct || artAct) ? "flex" : "none";
+
+  let enc=$("heroEnc");
+  if(!enc){ enc=document.createElement("div"); enc.id="heroEnc"; enc.className="encourage"; $("heroLine").after(enc); }
+  enc.style.display="block";
+  if(data && data.encouragement){
+    enc.textContent = data.encouragement;
+  } else if(!data){
+    enc.textContent = "先去学习吧，晚上再让小歌/小诗帮你总结 🌿";
+  } else if(m.wrong > 0 && m.wrong >= m.correct){
+    enc.textContent = "错题比对的还多，别急，把错的弄懂就是进步 💪";
+  } else if(engAct >= 15){
+    enc.textContent = "今天背的词不少，记得明天再扫一遍才牢 🔁";
+  } else {
+    enc.textContent = "稳稳推进，保持这个节奏就很棒 👍";
+  }
+}
+
+function render(){
+  const e = currentData && currentData.eng ? currentData.eng : { newWords:[], review:[], key:[], wrong:[], articles:[] };
+  const m = currentData && currentData.math ? currentData.math : { groups:0, correct:0, wrong:0, topics:[], wrongDetails:[] };
+  renderEngSummary(e);
+  renderMathSummary(m);
+  renderSummary(currentData);
+}
+
+function renderEmpty(){
+  $("engSummary").innerHTML = '<div class="empty" style="margin-top:10px">请先在总入口登录账号。</div>';
+  $("mathSummary").innerHTML = '<div class="empty" style="margin-top:10px">请先在总入口登录账号。</div>';
+  $("heroDay").textContent = "未登录";
+  $("heroLine").textContent = "请在总入口输入昵称进入。";
+  $("heroBars").style.display = "none";
+}
+
+async function generateTodayReport(){
+  const u = currentUser();
+  if(!u){ $("status").textContent="请先在总入口登录账号"; return; }
+  const btn = $("genBtn");
+  if(!currentData) await setDay("today");
+  if(!currentData){ $("status").textContent="读取数据失败，请刷新重试"; return; }
+
+  const day = rawDate();
+  const e = currentData.eng || {newWords:[], review:[], key:[], articles:[]};
+  const m = currentData.math || {groups:0, correct:0, wrong:0, topics:[], wrongDetails:[], resolved:0, resolvedTopics:[]};
+
+  btn.disabled = true;
+  btn.textContent = "🤖 生成中…";
+  $("status").textContent = "正在调用 AI 生成日报…";
+
+  try{
+    const prompt = buildDailyPrompt(day, u, e, m);
+    const res = await callDeepSeek(prompt);
+    const content = res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content || "";
+    const parsed = parseJsonFromText(content);
+    if(!parsed.summary) throw new Error("AI 返回格式缺少 summary");
+
+    let cur = {}; try{ cur = JSON.parse(uStorage.getItem("dailyReport_"+day)||"{}")||{}; }catch(e){ cur={}; }
+    cur.summary = parsed.summary;
+    cur.encouragement = parsed.encouragement || "继续加油，稳步前进！";
+    cur.updatedAt = Date.now();
+    uStorage.setItem("dailyReport_"+day, JSON.stringify(cur));
+    // best-effort 推回 Gist（若已配 Token），让夜间自动化与其它设备也能看到
+    try{ if(window.KaoyanSync && window.KaoyanSync.getToken()) await window.KaoyanSync.autoSync(); }catch(e){}
+
+    currentData.summary = cur.summary;
+    currentData.encouragement = cur.encouragement;
+    renderSummary(currentData);
+    $("status").textContent = day + " 日报已生成并保存（" + u + "）";
+  }catch(err){
+    console.error(err);
+    let msg = "生成失败：";
+    if(err.message === "no_key" || err.message.includes("no_key")){
+      msg += "未配置 DeepSeek API Key。请先在「数学学习中心 → DeepSeek 设置」填写 key，或启动本机 translate-proxy（端口 8787）。";
+    }else if(err.message.includes("api_error")){
+      msg += "DeepSeek API 请求失败（" + err.message + "）";
+    }else{
+      msg += (err.message || "未知错误");
+    }
+    $("status").innerHTML = esc(msg) + ' <button class="btn warn" style="padding:4px 10px;font-size:12px" onclick="generateTodayReport()">重试</button>';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "🤖 生成今日日报";
+  }
+}
+
+function addDaysStr(dayStr, n){
+  const d = new Date(dayStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  const p = x => String(x).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+}
+
+function weekOptionDates(){
+  const prefix = ukey("weeklyReport_");
+  const dates = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith(prefix)) dates.push(k.replace(prefix, ""));
+  }
+  return dates.sort().reverse();
+}
+
+function populateWeekSelect(){
+  const sel = $("weekSelect");
+  if(!sel) return;
+  const currentVal = sel.value;
+  const dates = weekOptionDates();
+  let html = '<option value="">📅 查看过往周总结</option>';
+  for(const d of dates){
+    const end = addDaysStr(d, 6);
+    html += `<option value="${d}">${d} ~ ${end}</option>`;
+  }
+  sel.innerHTML = html;
+  if(dates.includes(currentVal)) sel.value = currentVal;
+}
+
+function onWeekSelectChange(){
+  const sel = $("weekSelect");
+  const val = sel.value;
+  if(!val){
+    $("weekHero").style.display = "none";
+    return;
+  }
+  loadWeekReport(val);
+}
+
+async function loadWeekReport(weekStart){
+  let raw = uStorage.getItem("weeklyReport_" + weekStart);
+  if(!raw){
+    const g = await loadWeekReportFromGist(weekStart);
+    if(g) raw = JSON.stringify(g);
+  }
+  if(!raw){
+    $("weekHero").style.display = "none";
+    $("status").textContent = "未找到 " + weekStart + " 的周总结";
+    return;
+  }
+  let data = {};
+  try{ data = JSON.parse(raw); }catch(e){
+    $("status").textContent = "读取周总结数据失败";
+    return;
+  }
+  const weekEnd = (data.range && data.range[1]) ? data.range[1] : addDaysStr(weekStart, 6);
+  $("weekHero").style.display = "block";
+  $("weekDayText").textContent = weekStart + " ~ " + weekEnd + "　周总结";
+  $("weekLine").innerHTML = esc(data.summary || "（无文字总结）");
+  const enc = $("weekEnc");
+  enc.style.display = "block";
+  enc.textContent = data.encouragement || "继续加油，稳步前进！";
+  if($("weekSelect")) $("weekSelect").value = weekStart;
+  $("status").textContent = weekStart + " ~ " + weekEnd + " 周总结已显示";
+}
+
+async function deleteWeekReport(){
+  const sel = $("weekSelect");
+  const val = sel ? sel.value : "";
+  if(!val){
+    $("status").textContent = "请先在右侧下拉选择要删除的周总结";
+    return;
+  }
+  if(!confirm("确定删除 " + val + " 的周总结？此操作不可恢复。")) return;
+  uStorage.removeItem("weeklyReport_" + val);
+  $("weekHero").style.display = "none";
+  populateWeekSelect();
+  $("status").textContent = "已删除 " + val + " 的周总结";
+}
+
+async function generateWeekReport(force = false){
+  const u = currentUser();
+  if(!u){ $("status").textContent = "请先在总入口登录账号"; return; }
+  const btn = $("weekBtn");
+  const today = rawDate();
+  const weekStart = addDaysStr(today, -6);
+  const weekEnd = today;
+  const existingRaw = uStorage.getItem("weeklyReport_" + weekStart);
+
+  if(existingRaw && !force){
+    loadWeekReport(weekStart);
+    $("status").innerHTML = weekStart + " ~ " + weekEnd + " 周总结已生成，<button class='btn warn' style='padding:4px 10px;font-size:12px' onclick='generateWeekReport(true)'>重新生成</button>";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "📅 生成中…";
+  $("status").textContent = "正在汇总最近 7 天数据…";
+
+  try{
+    const weekData = { newWords:0, review:0, key:0, wrong:0, articles:0, groups:0, correct:0, wrongMath:0, resolved:0, summaries:[] };
+    for(let i=6; i>=0; i--){
+      const day = addDaysStr(today, -i);
+      const e = computeEngLocal(day);
+      const m = computeMathLocal(day);
+      let summary = "";
+      try{
+        const r = uStorage.getItem("dailyReport_" + day);
+        if(r){ const p = JSON.parse(r); summary = p.summary || ""; }
+      }catch(e){}
+      weekData.newWords += e.newWords.length;
+      weekData.review += e.review.length;
+      weekData.key += e.key.length;
+      weekData.wrong += e.wrong.length;
+      weekData.articles += e.articles.length;
+      weekData.groups += m.groups || 0;
+      weekData.correct += m.correct || 0;
+      weekData.wrongMath += m.wrong || 0;
+      weekData.resolved += m.resolved || 0;
+      if(summary) weekData.summaries.push({day, summary});
+    }
+
+    const totalMath = weekData.correct + weekData.wrongMath;
+    const pct = totalMath ? Math.round(weekData.correct / totalMath * 100) : 0;
+
+    const summaryLines = (weekData.summaries.slice(0, 5).map(s => "- " + s.day + "：" + s.summary).join("\n") || "无");
+
+    const prompt = `你是一位考研学习督导「小诗/小歌」。请根据用户「${u}」在 ${weekStart} 至 ${weekEnd}（最近 7 天）的学习数据，写一段 120-200 字的周总结（中文），并附一句 20 字以内的鼓励语。
+要求：
+- 客观、具体，不要编造没有的数据。
+- 语气亲切自然，像督导老师给学生写的周总结。
+- 必须只返回一段纯 JSON，不要 Markdown 代码块，不要额外说明。格式如下：
+{"summary":"...","encouragement":"..."}
+
+【英语】
+- 新词 ${weekData.newWords} 个、复习 ${weekData.review} 个、重点词 ${weekData.key} 个、错词 ${weekData.wrong} 个
+- 精读文章 ${weekData.articles} 篇
+
+【数学】
+- 做题 ${weekData.groups} 组，对 ${weekData.correct} 题，错 ${weekData.wrongMath} 题，正确率 ${pct}%
+- 巩固薄弱点 ${weekData.resolved} 个
+
+【每日摘要（最多 5 天）】
+${summaryLines}`;
+
+    const res = await callDeepSeek(prompt);
+    const content = res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content || "";
+    if(!content) throw new Error("AI 返回为空");
+    const parsed = parseJsonFromText(content, "周总结");
+    if(!parsed.summary) throw new Error("AI 返回格式缺少 summary");
+
+    const toSave = {
+      summary: parsed.summary,
+      encouragement: parsed.encouragement || "继续加油，稳步前进！",
+      generatedAt: new Date().toISOString(),
+      updatedAt: Date.now(),
+      range: [weekStart, weekEnd],
+      data: weekData
+    };
+    uStorage.setItem("weeklyReport_" + weekStart, JSON.stringify(toSave));
+    // best-effort 推回 Gist（若已配 Token）
+    try{ if(window.KaoyanSync && window.KaoyanSync.getToken()) await window.KaoyanSync.autoSync(); }catch(e){}
+
+    $("weekHero").style.display = "block";
+    $("weekDayText").textContent = weekStart + " ~ " + weekEnd + "　周总结";
+    $("weekLine").innerHTML = parsed.summary;
+    $("weekEnc").style.display = "block";
+    $("weekEnc").textContent = parsed.encouragement || "继续加油，稳步前进！";
+    populateWeekSelect();
+    $("weekSelect").value = weekStart;
+
+    $("status").textContent = weekStart + " ~ " + weekEnd + " 周总结已生成并保存（" + u + "）";
+  }catch(err){
+    console.error(err);
+    let short = "";
+    if(err.message === "no_key" || err.message.includes("no_key")){
+      short = "未配置 DeepSeek API Key";
+    }else if(err.message.includes("api_error")){
+      short = "DeepSeek API 请求失败（" + err.message + "）";
+    }else if(err.isParseError){
+      short = err.message;
+    }else{
+      short = err.message || "未知错误";
+    }
+    if(existingRaw){
+      loadWeekReport(weekStart);
+      $("status").innerHTML = "重新生成失败：" + esc(short) + "，已显示最近一次保存的周总结。<button class='btn warn' style='padding:4px 10px;font-size:12px' onclick='generateWeekReport(true)'>重试</button>";
+    }else{
+      $("status").innerHTML = "生成失败：" + esc(short) + ' <button class="btn warn" style="padding:4px 10px;font-size:12px" onclick="generateWeekReport()">重试</button>';
+    }
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "📅 生成周总结";
+  }
+}
+
+function buildDailyPrompt(day, user, e, m){
+  function take(arr,n){ return (arr||[]).slice(0,n); }
+  function list(arr){ return (arr||[]).filter(Boolean).join("、") || "无"; }
+  const total = m.correct + m.wrong;
+  const pct = total ? Math.round(m.correct/total*100) : 0;
+  const articlesInfo = (e.articles||[]).map(a => {
+    const wrong = (a.wrongQuestions||[]).length;
+    return (a.title || "未命名文章") + (wrong ? "（错题"+wrong+"道）" : "");
+  }).join("、") || "无";
+
+  return `你是一位考研学习督导「小诗/小歌」。请根据用户「${user}」在 ${day} 的学习数据，写一段 80-140 字的学习日报总结（中文），并附一句 20 字以内的鼓励语。
+
+要求：
+- 客观、具体，不要编造没有的数据。
+- 语气亲切自然，像督导老师给学生写的日报。
+- 必须返回纯 JSON，不要 Markdown 代码块，格式：{"summary":"...","encouragement":"..."}
+
+数据：
+【英语】
+- 新词（${e.newWords.length} 个）：${list(take(e.newWords, 20))}
+- 复习（${e.review.length} 个）：${list(take(e.review, 20))}
+- 重点词（${e.key.length} 个）：${list(take(e.key, 15))}
+- 错词（${e.wrong.length} 个）：${list(take(e.wrong, 15))}
+- 精读文章（${e.articles.length} 篇）：${articlesInfo}
+
+【数学】
+- 做题 ${m.groups} 组，对 ${m.correct} 题，错 ${m.wrong} 题，正确率 ${pct}%
+- 考点：${list(take(m.topics, 15))}
+- 错题：${list(take((m.wrongDetails||[]).map(w=>w.topic||"未分类考点"), 10))}
+- 今日巩固薄弱点（${m.resolved||0} 个）：${list(take(m.resolvedTopics, 10))}`;
+}
+
+async function callDeepSeek(prompt){
+  const proxy = (localStorage.getItem("tr-proxy-url") || "http://127.0.0.1:8787").replace(/\/$/,"");
+  const key = localStorage.getItem("deepseek-api-key") || "";
+  const body = JSON.stringify({
+    model: "deepseek-v4-flash",
+    messages: [
+      {role: "system", content: "你是一位考研学习督导，只返回纯 JSON。"},
+      {role: "user", content: prompt}
+    ],
+    temperature: 0.7,
+    max_tokens: 512
+  });
+
+  // 优先走本机 translate-proxy（与英语/数学中心一致）
+  try {
+    const r = await fetch(proxy + "/chat/completions", { method: "POST", headers: {"Content-Type":"application/json"}, body });
+    if(r.ok) return await r.json();
+  } catch(e) {}
+
+  // 直连 DeepSeek
+  if(!key) throw new Error("no_key");
+  const r = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {"Content-Type":"application/json", "Authorization":"Bearer " + key},
+    body
+  });
+  if(!r.ok) throw new Error("api_error " + r.status);
+  return await r.json();
+}
+
+function parseJsonFromText(t, ctx){
+  const raw = (t || "").trim();
+  if(!raw) {
+    const err = new Error("AI 返回为空" + (ctx ? " [" + ctx + "]" : ""));
+    err.rawPreview = "(空)";
+    err.isParseError = true;
+    throw err;
+  }
+  let s = raw;
+  // 去掉 Markdown 代码块
+  const codeBlock = s.match(/^```[a-zA-Z]*\s*([\s\S]*?)```$/);
+  if(codeBlock) s = codeBlock[1].trim();
+  try { return JSON.parse(s); } catch(e) {}
+  // 用平衡括号找最外层 JSON 对象
+  let start = s.indexOf("{");
+  if(start === -1) throw previewErr(raw, ctx);
+  let depth = 0, end = -1;
+  for(let i = start; i < s.length; i++){
+    const c = s[i];
+    if(c === "{") depth++;
+    else if(c === "}") {
+      depth--;
+      if(depth === 0){ end = i; break; }
+    }
+  }
+  if(end === -1) throw previewErr(raw, ctx);
+  const json = s.slice(start, end + 1);
+  try { return JSON.parse(json); } catch(e){ throw previewErr(raw, ctx); }
+}
+function previewErr(raw, ctx){
+  const preview = raw.replace(/[\r\n]+/g, " ").slice(0, 220);
+  const msg = "无法解析 AI 返回的 JSON" + (ctx ? " [" + ctx + "]" : "") + "。返回预览：" + preview;
+  const err = new Error(msg);
+  err.rawPreview = preview;
+  err.isParseError = true;
+  return err;
+}
+
+async function setDay(mode){
+  currentDay = mode==="pick" ? $("dPick").value : mode;
+  ["dToday","dYest"].forEach(id=>$(id).classList.remove("active"));
+  if(mode==="today") $("dToday").classList.add("active");
+  else if(mode==="yest") $("dYest").classList.add("active");
+  const day = rawDate();
+  const u = currentUser();
+  if(!u){ $("status").textContent = "请先在总入口登录你的账号"; renderEmpty(); return; }
+  $("status").textContent = "正在读取 " + day + " 的日报…";
+  const { per, shared } = await loadReport(day);
+  const engLocal = computeEngLocal(day);
+  const mathLocal = computeMathLocal(day);
+  const base = shared || {};
+  const eng = (engLocal.newWords.length||engLocal.review.length||engLocal.key.length||engLocal.wrong.length||engLocal.articles.length) ? engLocal : (base.eng || engLocal);
+  const math = (mathLocal.groups||mathLocal.correct||mathLocal.wrong) ? mathLocal : (base.math || mathLocal);
+  const summary = (per && per.summary) || base.summary || null;
+  const encouragement = (per && per.encouragement) || base.encouragement || null;
+  currentData = { eng, math, summary, encouragement };
+  if(!shared && !per){
+    $("status").innerHTML = day + " 暂无记录，去学习后这里会自动统计。<button class='btn warn' style='padding:4px 10px;font-size:12px' onclick='generateTodayReport()'>生成</button>";
+  } else {
+    $("status").textContent = "已读取 " + day + " 的日报（" + u + "）";
+  }
+  render();
+}
+
+(async function init(){
+  currentDay = "today";
+  await setDay("today");
+  populateWeekSelect();
+})();
+</script>
+</body>
+</html>

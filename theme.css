@@ -1,0 +1,129 @@
+/* ===== 考研学习中心 · 统一视觉增强主题 =====
+ * 仅做视觉美化，不改动任何 JS 逻辑。
+ * 如不喜欢，可用优化前快照 zip 恢复，或移除此文件引用。
+ */
+
+:root {
+  --bg: #f5f7fb;
+  --bg2: #eef2f7;
+  --card: #ffffff;
+  --text: #1f2733;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #6366f1;
+  --primary-d: #4f46e5;
+  --math: #6366f1;
+  --eng: #0ea5e9;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --shadow: 0 10px 25px -5px rgba(0,0,0,.06), 0 8px 10px -6px rgba(0,0,0,.02);
+  --shadow-lg: 0 20px 40px -10px rgba(0,0,0,.1);
+}
+
+body {
+  background: linear-gradient(160deg, var(--bg), var(--bg2)) fixed;
+}
+
+/* 卡片统一 */
+.card,
+.quiz-card,
+.weak-card,
+.kp-group,
+.q-card,
+.tr-card,
+.wt-card {
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(229,231,235,.6);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.card:hover,
+.quiz-card:hover,
+.weak-card:hover,
+.kp-group:hover,
+.q-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+/* 按钮统一 */
+.filter-btn,
+.btn,
+.btn-primary,
+.btn-default,
+button[data-mod],
+button.module-tab,
+.mode-btn,
+.diff-btn {
+  border-radius: 12px;
+  transition: all .15s ease;
+}
+
+.filter-btn:hover,
+.btn:hover,
+.btn-primary:hover,
+.btn-default:hover,
+.mode-btn:hover,
+.diff-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99,102,241,.18);
+}
+
+/* 输入框 focus */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea,
+select,
+.av-input,
+.auto-input,
+.tr-input-word {
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus,
+.av-input:focus,
+.auto-input:focus,
+.tr-input-word:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+}
+
+/* 表格 */
+table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+table th {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  font-weight: 700;
+  color: #374151;
+}
+
+table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* 模块 tab 选中态强化 */
+.module-tab.active {
+  box-shadow: 0 8px 20px rgba(99,102,241,.35);
+}
