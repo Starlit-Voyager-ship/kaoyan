@@ -1201,6 +1201,7 @@ function cleanBankDuplicates(){
 }
 function getChatLogMathTasks(){
   // 合并「助理答疑」中属于数学的题（user:<昵称>:chatLog_<日期>），让题库/薄弱点也包含助理发的题
+  // 只取 isQuestion===true 的条目（概念咨询不进入题库）；旧数据无 isQuestion 字段视为 true（兼容）
   const u = (window.getCurrentUser && window.getCurrentUser()) || "";
   if(!u) return [];
   const out = [];
@@ -1218,11 +1219,12 @@ function getChatLogMathTasks(){
       arr.forEach((x, idx) => {
         const subj = (x.subject||'').trim();
         if(subj && subj !== '数学') return; // 只取数学；空 subject 兼容旧数据
+        if(x.isQuestion === false) return; // 概念咨询不进入题库（旧数据无此字段视为 true）
         const q = x.q || x.kp || "(未命名题目)";
         const key = day + '|' + (x.kp||'') + '|' + q;
         if(seen.has(key)) return; seen.add(key);
         out.push({
-          no: 'chat-' + day + '-' + idx,
+          no: 'chat-' + (out.length + 1),
           kp: x.kp || '助理答疑',
           q: q,
           a: x.ans || x.a || '',
