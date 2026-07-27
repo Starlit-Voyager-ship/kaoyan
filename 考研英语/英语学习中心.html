@@ -1739,40 +1739,51 @@ function updateWordClickButton(){
 }
 function cleanWordToken(w){ return (w || "").replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, "").toLowerCase(); }
 
-function renderClickablePara(text, spans, cnMap){
+function renderClickablePara(text, spans, lookups, paraIdx){
   spans.sort((a,b)=>a[0]-b[0] || a[1]-b[1]);
   let out="", cur=0;
   for(const [s,e,t] of spans){
     if(s<cur) continue;
-    out += renderClickablePlain(text.slice(cur, s), cnMap);
+    out += renderClickablePlain(text.slice(cur, s), lookups, paraIdx);
     const cls = t==="blue" ? "hl-blue" : "hl-red";
     const w = text.slice(s, e);
     const cw = cleanWordToken(w);
-    const cn = cnMap && cnMap[cw];
-    out += `<span class="${cls} word-clickable" data-word="${escapeHtml(cw)}">${escapeHtml(w)}</span>` + (cn ? `<span class="word-inline-cn">（${escapeHtml(cn)}）</span>` : "");
+    out += `<span class="${cls} word-clickable" data-word="${escapeHtml(cw)}" data-para="${paraIdx}" data-occ="-1">${escapeHtml(w)}</span>`;
     cur = e;
   }
-  out += renderClickablePlain(text.slice(cur), cnMap);
+  out += renderClickablePlain(text.slice(cur), lookups, paraIdx);
   return out;
 }
-function renderClickablePlain(text, cnMap){
+function renderClickablePlain(text, lookups, paraIdx){
   // 把英文单词（含连字符/撇号）包成可点击 span，非单词字符原样输出
+  // 每个出现位置独立编号，已点译的释义只显示在被点的那个位置
+  const a = getArticles()[currentArticleIdx];
+  const list = (lookups || []).filter(x => x.fromArticle && x.articleId === (a && a.id));
+  const occMap = {};
   return text.replace(/[A-Za-z]+(?:['-][A-Za-z]+)*/g, m => {
     const cw = cleanWordToken(m);
-    const cn = cnMap && cnMap[cw];
-    return `<span class="word-clickable" data-word="${escapeHtml(cw)}">${escapeHtml(m)}</span>` + (cn ? `<span class="word-inline-cn">（${escapeHtml(cn)}）</span>` : "");
+    if (!cw) return escapeHtml(m);
+    const occIdx = (occMap[cw] || 0);
+    occMap[cw] = occIdx + 1;
+    // 优先精确匹配 (paraIdx, occIdx)；兼容旧数据（无位置信息）按词匹配
+    const rec = list.find(x => x.word.toLowerCase() === cw &&
+      (x.paraIdx === undefined || x.paraIdx === paraIdx) &&
+      (x.occIdx === undefined || x.occIdx === occIdx));
+    const cn = rec ? rec.cn : '';
+    return `<span class="word-clickable" data-word="${escapeHtml(cw)}" data-para="${paraIdx}" data-occ="${occIdx}">${escapeHtml(m)}</span>` + (cn ? `<span class="word-inline-cn">（${escapeHtml(cn)}）</span>` : "");
   });
 }
 async function handleWordClick(span){
   if(span.classList.contains("loading")) return;
   const word = (span.getAttribute("data-word") || "").trim();
+  const paraIdx = +span.getAttribute("data-para");
+  const occIdx = +span.getAttribute("data-occ");
   if(!word) return;
 
   span.classList.add("loading");
   try{
     // 获取当前段落的中英文上下文，用于生成「句中译」
     const a = getArticles()[currentArticleIdx];
-    const paraIdx = Array.from(span.closest("#artBody").querySelectorAll("p")).indexOf(span.closest("p"));
     const enSentence = (a && a.paragraphs && a.paragraphs[paraIdx]) || "";
     const cnSentence = (a && a.translations && a.translations[paraIdx]) || "";
 
@@ -1793,7 +1804,7 @@ async function handleWordClick(span){
     if(!cn) throw new Error("翻译失败");
     const {pos, meaning, cnContext} = parseMeaning(cn);
     autoAddToVocab(word, pos, meaning, "");
-    saveArticleWordLookup(word, cn, cnContext);
+    saveArticleWordLookup(word, cn, cnContext, paraIdx, occIdx);
     // 重新渲染文章：已翻译词自动显示内联释义、标红，并追加到下方生词表
     renderArticle(currentArticleIdx);
   }catch(e){
@@ -1808,19 +1819,34 @@ async function handleWordClick(span){
 }
 
 /* 点词翻译后保存到查词记录，并强制关联当前文章（用于标红 + 文章生词表） */
-function saveArticleWordLookup(word, cn, cnContext){
+function saveArticleWordLookup(word, cn, cnContext, paraIdx, occIdx){
   let arr = [];
   try { arr = JSON.parse(uStorage.getItem(WT_LOOKUP_KEY) || "[]") || []; } catch (e) { arr = []; }
   const a = getArticles()[currentArticleIdx];
   const entry = { word, cn, date: todayStr(), fromArticle: true };
   if(cnContext) entry.cnContext = cnContext;
+  if(paraIdx !== undefined && paraIdx !== null) entry.paraIdx = paraIdx;
+  if(occIdx !== undefined && occIdx !== null) entry.occIdx = occIdx;
   if(a){
     entry.articleId = a.id;
     entry.type = "word";
-    // 取原句作为例句
+    // 取原句作为例句（优先用当前段落；无段落信息则回退全文首处）
     const text = (a.paragraphs || []).join("\n");
     const re = new RegExp(wordRegexSource(word), "gi");
-    const m = re.exec(text);
+    let m = null;
+    if (paraIdx >= 0 && a.paragraphs[paraIdx]) {
+      const paraText = a.paragraphs[paraIdx];
+      const paraRe = new RegExp(wordRegexSource(word), "gi");
+      let k = 0, mm;
+      while ((mm = paraRe.exec(paraText)) !== null) {
+        if (k === (occIdx >= 0 ? occIdx : 0)) { m = mm; break; }
+        k++;
+        if (mm.index === paraRe.lastIndex) paraRe.lastIndex++;
+      }
+      if (!m) m = re.exec(text);
+    } else {
+      m = re.exec(text);
+    }
     if(m){
       const start = Math.max(0, m.index - 60);
       const end = Math.min(text.length, m.index + m[0].length + 60);
@@ -1830,7 +1856,13 @@ function saveArticleWordLookup(word, cn, cnContext){
       entry.example = example;
     }
   }
-  const idx = arr.findIndex(x => (x.word || "").toLowerCase() === word.toLowerCase());
+  // 同一篇文章同一位置重复点译则覆盖；不同位置各自独立保存
+  const idx = arr.findIndex(x =>
+    (x.word || "").toLowerCase() === word.toLowerCase() &&
+    x.fromArticle && x.articleId === (a && a.id) &&
+    (x.paraIdx === paraIdx || (x.paraIdx === undefined && paraIdx === undefined)) &&
+    (x.occIdx === occIdx || (x.occIdx === undefined && occIdx === undefined))
+  );
   if(idx >= 0) arr[idx] = entry;
   else arr.push(entry);
   uStorage.setItem(WT_LOOKUP_KEY, JSON.stringify(arr));
@@ -1899,15 +1931,13 @@ function renderArticle(idx) {
   articleLookups.filter(x => x.type === "colloc").forEach(x => {
     if (!highlightCollocs.some(c => c.phrase === x.word)) highlightCollocs.push({ phrase: x.word, meaning: x.cn, cnContext: x.cnContext });
   });
-  // 已点词翻译的单词 → 内联释义映射（小写）
-  const articleCnMap = {};
-  articleLookups.forEach(x => { if(x.word) articleCnMap[x.word.toLowerCase()] = x.cn; });
+  // 已点词翻译的记录 → 按段落+出现位置显示内联释义，不再全文统一
   const hasTrans = Array.isArray(a.translations) && a.translations.length === a.paragraphs.length;
   document.getElementById("artBody").innerHTML = a.paragraphs.map((p, i) => {
     const cn = (hasTrans && a.translations[i]) ? a.translations[i] : "";
     const transHtml = cn ? `<div class="art-trans">${highlightCnByWords(cn, p, highlightWords.concat(highlightCollocs))}</div>` : "";
     const spans = buildSpans(p, highlightWords, highlightCollocs);
-    const paraHtml = window.__wordClickMode ? renderClickablePara(p, spans, articleCnMap) : applySpans(p, spans);
+    const paraHtml = window.__wordClickMode ? renderClickablePara(p, spans, articleLookups, i) : applySpans(p, spans);
     return `<p>${paraHtml}</p>` + transHtml;
   }).join("");
   updateWordClickButton();
@@ -2150,6 +2180,21 @@ async function confirmArticle() {
   msg.style.color = "var(--success)";
   msg.textContent = "文章已入库" + (window.__showTrans ? "并翻译" : "") + "：" + title;
   document.getElementById("ocrResult").innerHTML = "";
+
+  // 文章入库后自动同步到 Gist，保证日报/跨设备能立即读到
+  setTimeout(async () => {
+    try {
+      if (window.KaoyanSync && typeof window.KaoyanSync.autoSync === "function") {
+        const token = window.KaoyanSync.getToken && window.KaoyanSync.getToken();
+        if (token) {
+          await window.KaoyanSync.autoSync(token);
+          console.log("[confirmArticle] 文章已自动同步到 Gist");
+        }
+      }
+    } catch (e) {
+      console.warn("[confirmArticle] 自动同步失败，可手动点右下角 ☁️ 同步：", e);
+    }
+  }, 800);
 }
 
 /* 翻译开关：展开/收起逐段中文译文；无译文时实时翻译并持久化到当前账号 */
@@ -2432,10 +2477,13 @@ function renderList() {
     tbody.innerHTML = list.map((o, i) => {
       const diff = getDifficulty(o);
       const pos = (o.meaning.match(/^[a-zA-Z.]+/) || [""])[0];
+      const hit = findTermInTodayArticles(o.word);
+      const isColloc = hit && hit.type === 'colloc';
+      const wordClass = isColloc ? 'word hl-blue' : 'word';
       return `
         <tr data-word="${escapeHtml(o.word)}">
           <td class="idx">${i + 1}</td>
-          <td class="word">${escapeHtml(o.word)}</td>
+          <td class="${wordClass}">${escapeHtml(o.word)}</td>
           <td class="pos">${escapeHtml(pos)}</td>
           <td class="input-cell">${escapeHtml(o.meaning)}</td>
           <td class="fam-cell">${o.familiar ? `<span class="fam">${escapeHtml(o.familiar)}</span>` : "—"}</td>
@@ -2451,13 +2499,16 @@ function renderList() {
   tbody.innerHTML = list.map((o, i) => {
     const diff = getDifficulty(o);
     const pos = (o.meaning.match(/^[a-zA-Z.]+/) || [""])[0];
+    const hit = findTermInTodayArticles(o.word);
+    const isColloc = hit && hit.type === 'colloc';
+    const wordClass = isColloc ? 'word hl-blue' : 'word';
     const extraCell = isWrongMode
       ? `<td class="wrong-count"><span class="wrong-badge" title="累计错误 ${o.wrong || 0} 次">×${o.wrong || 0}</span></td>`
       : `<td class="difficulty">${diff}</td>`;
     return `
       <tr data-word="${escapeHtml(o.word)}">
         <td class="idx">${i + 1}</td>
-        <td class="word">${escapeHtml(o.word)}</td>
+        <td class="${wordClass}">${escapeHtml(o.word)}</td>
         <td class="pos">${escapeHtml(pos)}</td>
         <td class="input-cell">
           <input type="text" class="meaning" id="inp-${i}" placeholder="写中文释义..." autocomplete="off">
