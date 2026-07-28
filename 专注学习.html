@@ -238,17 +238,21 @@
   @media (max-width: 760px) {
     .pie-body { grid-template-columns: 1fr; }
   }
+  .pie-chart-col { display: flex; flex-direction: column; align-items: center; }
   .pie-canvas-wrap {
     position: relative;
-    width: 260px; height: 260px;
+    width: 280px; height: 280px;
     margin: 0 auto;
   }
-  .pie-canvas-wrap svg { width: 100%; height: 100%; }
+  .pie-canvas-wrap svg { width: 100%; height: 100%; display: block; }
   .pie-empty {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
     color: var(--muted); font-size: 14px;
   }
+  .pie-total { text-align: center; margin-top: 14px; }
+  .pie-total-val { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .pie-total-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
   .legend-list { display: flex; flex-direction: column; gap: 8px; }
   .legend-item {
     display: flex; align-items: center; gap: 10px;
@@ -427,9 +431,15 @@
       <button class="mode-btn" id="modeSubject" data-mode="subject">按学科</button>
     </div>
     <div class="pie-body">
-      <div class="pie-canvas-wrap">
-        <svg id="pieSvg" viewBox="0 0 100 100"></svg>
-        <div class="pie-empty" id="pieEmpty" style="display:none;">暂无记录</div>
+      <div class="pie-chart-col">
+        <div class="pie-canvas-wrap">
+          <svg id="pieSvg" viewBox="0 0 100 100"></svg>
+          <div class="pie-empty" id="pieEmpty" style="display:none;">暂无记录</div>
+        </div>
+        <div class="pie-total" id="pieTotal">
+          <div class="pie-total-val" id="pieTotalVal">0 分钟</div>
+          <div class="pie-total-lbl">总时长</div>
+        </div>
       </div>
       <div class="legend-list" id="legendList"></div>
     </div>
@@ -766,21 +776,24 @@ function renderPie(date){
   const svg = $("pieSvg");
   const empty = $("pieEmpty");
   const legend = $("legendList");
+  const totalVal = $("pieTotalVal");
   legend.innerHTML = "";
 
   if(list.length === 0){
     svg.innerHTML = "";
     empty.style.display = "flex";
+    $("pieTotal").style.display = "none";
     return;
   }
   empty.style.display = "none";
+  $("pieTotal").style.display = "block";
 
   let items = [];
   if(pieGroupMode === "subject"){
-    // 按学科合并
+    // 按学科合并：CSS 变量在 SVG fill 中部分环境不生效，这里转具体 hex
     const groups = {
-      eng:  { name: "英语", dur: 0, color: "var(--eng)" },
-      math: { name: "数学", dur: 0, color: "var(--math)" },
+      eng:  { name: "英语", dur: 0, color: "#0ea5e9" },
+      math: { name: "数学", dur: 0, color: "#f59e0b" },
       other:{ name: "其他", dur: 0, color: "#94a3b8" }
     };
     list.forEach(s => {
@@ -806,30 +819,32 @@ function renderPie(date){
   }
 
   const total = items.reduce((a,b)=>a+b.dur, 0);
+  totalVal.textContent = fmtMin(total);
 
-  // 画饼（SVG）
-  let acc = 0;
-  const cx = 50, cy = 50, r = 42;
+  // 画实心圆盘饼图（SVG）
+  const cx = 50, cy = 50, r = 48;
+  const toRad = p => p * Math.PI * 2 - Math.PI/2;
+  const pt = a => ({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
   const slicePath = (startA, endA) => {
-    const x1 = cx + r * Math.cos(startA);
-    const y1 = cy + r * Math.sin(startA);
-    const x2 = cx + r * Math.cos(endA);
-    const y2 = cy + r * Math.sin(endA);
+    const p1 = pt(startA), p2 = pt(endA);
     const large = (endA - startA) > Math.PI ? 1 : 0;
-    return `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+    return `M ${cx} ${cy} L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} Z`;
   };
+
   let svgHtml = "";
-  items.forEach(it => {
-    if(total <= 0) return;
-    const startA = (acc / total) * Math.PI * 2 - Math.PI/2;
-    acc += it.dur;
-    const endA = (acc / total) * Math.PI * 2 - Math.PI/2;
-    svgHtml += `<path d="${slicePath(startA, endA)}" fill="${it.color}" stroke="#fff" stroke-width="0.5"><title>${esc(it.name)}: ${fmtHMS(it.dur)}</title></path>`;
-  });
-  // 中心圆（甜甜圈效果）
-  svgHtml += `<circle cx="${cx}" cy="${cy}" r="22" fill="#fff"/>`;
-  svgHtml += `<text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="6" font-weight="800" fill="#1f2733">${fmtMin(total)}</text>`;
-  svgHtml += `<text x="${cx}" y="${cy+6}" text-anchor="middle" font-size="3.5" fill="#7a869a">总时长</text>`;
+  if(items.length === 1 && total > 0){
+    // 只有一项时画整圆，避免 360° 弧在部分浏览器不渲染
+    svgHtml += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${items[0].color}" stroke="#fff" stroke-width="0.5"><title>${esc(items[0].name)}: ${fmtHMS(items[0].dur)}</title></circle>`;
+  } else {
+    let acc = 0;
+    items.forEach(it => {
+      if(total <= 0) return;
+      const startA = toRad(acc / total);
+      acc += it.dur;
+      const endA = toRad(acc / total);
+      svgHtml += `<path d="${slicePath(startA, endA)}" fill="${it.color}" stroke="#fff" stroke-width="0.5"><title>${esc(it.name)}: ${fmtHMS(it.dur)}</title></path>`;
+    });
+  }
   svg.innerHTML = svgHtml;
 
   // 图例
