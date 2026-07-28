@@ -123,13 +123,13 @@
 
   // 集合型数组键（文章 / 数学题库·错题·薄弱点 / 查词记录 / 聊天答疑），按业务键去重
   function isSetArrayKey(k){
-    return /:(articlesExtra_v1|mathAutoBank_v1|mathDailyWrong_v1|mathWeaks_v1|my-word-lookup-log)$/.test(k)
+    return /:(articlesExtra_v1|mathAutoBank_v1|mathDailyWrong_v1|mathWeaks_v1|my-word-lookup-log|focusSessions_v1)$/.test(k)
         || /:chatLog_\d{4}-\d{2}-\d{2}$/.test(k);
   }
   // 词汇总表（二维数组，第一列为单词），按 word 去重
   function isVocabDataKey(k){ return /:vocab-quiz-data-v1$/.test(k); }
-  // 映射型对象键（学习进度 / 已解决薄弱点），按 key 去重
-  function isMapKey(k){ return /:(vocab-quiz-learn-v1|mathWeakResolved_v1)$/.test(k); }
+  // 映射型对象键（学习进度 / 已解决薄弱点 / 专注类目配色），按 key 去重
+  function isMapKey(k){ return /:(vocab-quiz-learn-v1|mathWeakResolved_v1|focusColors_v1)$/.test(k); }
 
   // 取集合元素的去重键：二维数组取首元素(单词)；对象取 no|date|q|id 等
   function setItemKey(it){
