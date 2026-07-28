@@ -340,6 +340,31 @@
     font-size: 12.5px; color: var(--muted); line-height: 1.7; margin-top: 12px;
     background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px;
   }
+
+  /* 饼图模式切换 */
+  .pie-mode-toggle {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .mode-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 14px; border-radius: 10px; cursor: pointer;
+    font-size: 13px; font-weight: 700;
+  }
+  .mode-btn:hover { border-color: var(--primary); }
+  .mode-btn.active {
+    background: linear-gradient(135deg, #6366f1, #0ea5e9);
+    color: #fff; border-color: transparent;
+  }
+
+  /* 学科分类标签 */
+  .session-tag {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; color: #fff; margin-left: 4px;
+    display: inline-flex; align-items: center;
+  }
+  .session-tag.eng { background: var(--eng); }
+  .session-tag.math { background: var(--math); }
+  .session-tag.other { background: #94a3b8; }
 </style>
 </head>
 <body>
@@ -397,6 +422,10 @@
   <!-- 饼状图 -->
   <div class="pie-section">
     <h2>🥧 专注分类饼状图 <span class="tag" id="pieDateTag">今日</span></h2>
+    <div class="pie-mode-toggle">
+      <button class="mode-btn active" id="modeName" data-mode="name">按名称</button>
+      <button class="mode-btn" id="modeSubject" data-mode="subject">按学科</button>
+    </div>
     <div class="pie-body">
       <div class="pie-canvas-wrap">
         <svg id="pieSvg" viewBox="0 0 100 100"></svg>
@@ -417,6 +446,7 @@
   <div class="footer-tip">
     💡 数据存浏览器 localStorage（按当前账号隔离），并每 30 分钟自动同步到 Gist；右上角的 ☁️ 同步按钮可手动上传/下载。
     名称支持随时编辑修改；点击「删除」可移除误录记录（仅影响当前账号）。
+    系统会根据专注名称自动归类：含「英语/精翻/单词/阅读/作文/长难句」等归入英语；含「数学/高数/线代/概率/刷题/听课」等归入数学。
   </div>
 </div>
 
@@ -460,6 +490,15 @@ function fmtMin(seconds){
     return h + " 小时 " + (m>0?(m+" 分"):"").trim();
   }
   return mins + " 分钟";
+}
+function inferCategory(name){
+  const n = String(name || "").toLowerCase();
+  if(/英语|english|eng|精翻|精读|单词|词汇|阅读|作文|写作|翻译|长难句|听力|口语|语法|完型|完形|背单词|刷单词|英语二|英二|英语一|英一|四级|六级|四六级|cet|考研英语|英语真题|英语阅读|外刊|作文模板|作文范文|红宝书|恋词|闪过/.test(n)) return "eng";
+  if(/数学|math|高数|高等数学|线代|线性代数|概率|概率论|数理统计|微积分|做题|刷题|听课|网课|真题|模拟题|数一|数二|数三|考研数学|武忠祥|张宇|李永乐|汤家凤|660|880|1000题|严选题|李林|合工大|超越|张宇8套|张宇4套|李正元|复习全书|辅导讲义|基础30讲|强化36讲|李范全书|杨超|方浩/.test(n)) return "math";
+  return "other";
+}
+function categoryLabel(cat){
+  return {eng:"英语", math:"数学", other:"其他"}[cat] || "其他";
 }
 function toast(msg, type){
   const t = $("toast");
@@ -514,6 +553,7 @@ function colorFor(name, map){
 let viewDate = todayStr();   // 当前在看哪一天
 let running = loadRunning(); // 正在进行的会话
 let tickInterval = null;
+let pieGroupMode = "name";   // "name" | "subject"
 
 // ============== 计时器 ==============
 function startTick(){
@@ -639,6 +679,7 @@ function onSaveEndedSession(){
   list.push({
     id: running.id,
     name: running.name || "未命名专注",
+    category: inferCategory(running.name),
     startAt: running.startAt,
     endAt: running.endAt,
     duration: getElapsed(),
@@ -693,8 +734,9 @@ function renderAll(){
   // 分类：英语 / 数学 / 其他
   let eng = 0, math = 0;
   todayList.forEach(s => {
-    if(/英语|english|eng|精翻|单词|阅读|作文|翻译/i.test(s.name)) eng += s.duration;
-    else if(/数学|math|线代|高数|概率|做题|听课|刷题/i.test(s.name)) math += s.duration;
+    const cat = s.category || inferCategory(s.name);
+    if(cat === "eng") eng += s.duration;
+    else if(cat === "math") math += s.duration;
   });
   $("statEng").textContent = fmtMin(eng);
   $("statMath").textContent = fmtMin(math);
@@ -733,19 +775,37 @@ function renderPie(date){
   }
   empty.style.display = "none";
 
-  // 合并同名
-  const merged = {};
-  list.forEach(s => {
-    if(!merged[s.name]) merged[s.name] = 0;
-    merged[s.name] += s.duration;
-  });
-  const items = Object.entries(merged).sort((a,b)=>b[1]-a[1]);
-  const total = items.reduce((a,b)=>a+b[1], 0);
+  let items = [];
+  if(pieGroupMode === "subject"){
+    // 按学科合并
+    const groups = {
+      eng:  { name: "英语", dur: 0, color: "var(--eng)" },
+      math: { name: "数学", dur: 0, color: "var(--math)" },
+      other:{ name: "其他", dur: 0, color: "#94a3b8" }
+    };
+    list.forEach(s => {
+      const cat = s.category || inferCategory(s.name);
+      groups[cat].dur += s.duration;
+    });
+    items = Object.values(groups).filter(g => g.dur > 0).sort((a,b)=>b.dur-a.dur);
+  } else {
+    // 按名称合并
+    const merged = {};
+    list.forEach(s => {
+      if(!merged[s.name]) merged[s.name] = 0;
+      merged[s.name] += s.duration;
+    });
+    const colorMap = loadColorMap();
+    items = Object.entries(merged)
+      .map(([name, dur]) => {
+        colorFor(name, colorMap);
+        return { name, dur, color: colorMap[name] };
+      })
+      .sort((a,b)=>b.dur-a.dur);
+    saveColorMap(colorMap);
+  }
 
-  // 分配颜色
-  const colorMap = loadColorMap();
-  items.forEach(([n]) => colorFor(n, colorMap));
-  saveColorMap(colorMap);
+  const total = items.reduce((a,b)=>a+b.dur, 0);
 
   // 画饼（SVG）
   let acc = 0;
@@ -759,13 +819,12 @@ function renderPie(date){
     return `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
   };
   let svgHtml = "";
-  items.forEach(([name, dur]) => {
+  items.forEach(it => {
     if(total <= 0) return;
     const startA = (acc / total) * Math.PI * 2 - Math.PI/2;
-    acc += dur;
+    acc += it.dur;
     const endA = (acc / total) * Math.PI * 2 - Math.PI/2;
-    const color = colorMap[name];
-    svgHtml += `<path d="${slicePath(startA, endA)}" fill="${color}" stroke="#fff" stroke-width="0.5"><title>${esc(name)}: ${fmtHMS(dur)}</title></path>`;
+    svgHtml += `<path d="${slicePath(startA, endA)}" fill="${it.color}" stroke="#fff" stroke-width="0.5"><title>${esc(it.name)}: ${fmtHMS(it.dur)}</title></path>`;
   });
   // 中心圆（甜甜圈效果）
   svgHtml += `<circle cx="${cx}" cy="${cy}" r="22" fill="#fff"/>`;
@@ -774,17 +833,21 @@ function renderPie(date){
   svg.innerHTML = svgHtml;
 
   // 图例
-  items.forEach(([name, dur]) => {
-    const pct = total > 0 ? Math.round(dur / total * 100) : 0;
+  items.forEach(it => {
+    const pct = total > 0 ? Math.round(it.dur / total * 100) : 0;
     const div = document.createElement("div");
     div.className = "legend-item";
     div.innerHTML = `
-      <div class="legend-color" style="background:${colorMap[name]}"></div>
-      <div class="legend-name">${esc(name)}</div>
-      <div class="legend-dur">${fmtHMS(dur)} · ${pct}%</div>
+      <div class="legend-color" style="background:${it.color}"></div>
+      <div class="legend-name">${esc(it.name)}</div>
+      <div class="legend-dur">${fmtHMS(it.dur)} · ${pct}%</div>
     `;
     legend.appendChild(div);
   });
+
+  // 更新切换按钮高亮
+  $("modeName").classList.toggle("active", pieGroupMode === "name");
+  $("modeSubject").classList.toggle("active", pieGroupMode === "subject");
 }
 
 function renderSessionList(date){
@@ -800,6 +863,7 @@ function renderSessionList(date){
   const colorMap = loadColorMap();
   wrap.innerHTML = list.map((s, i) => {
     colorFor(s.name, colorMap);
+    const cat = s.category || inferCategory(s.name);
     const start = new Date(s.startAt);
     const end = new Date(s.endAt);
     const durStr = fmtHMS(s.duration);
@@ -809,6 +873,7 @@ function renderSessionList(date){
         <div class="session-body">
           <div class="session-name">
             <input type="text" value="${esc(s.name)}" data-id="${esc(s.id)}" maxlength="40">
+            <span class="session-tag ${cat}">${categoryLabel(cat)}</span>
             <span class="session-meta">${i+1}.</span>
           </div>
           <div class="session-meta">
@@ -855,6 +920,7 @@ function updateSession(id, patch){
   const list = loadAll();
   const idx = list.findIndex(s => s.id === id);
   if(idx < 0) return;
+  if(patch.name !== undefined) patch.category = inferCategory(patch.name);
   list[idx] = Object.assign({}, list[idx], patch);
   saveAll(list);
   renderAll();
@@ -883,6 +949,10 @@ $("dNext").onclick = () => {
   viewDate = fmtDate(d);
   renderAll();
 };
+
+// 饼图分组切换
+$("modeName").onclick = () => { pieGroupMode = "name"; renderPie(viewDate); };
+$("modeSubject").onclick = () => { pieGroupMode = "subject"; renderPie(viewDate); };
 
 // 页面关闭/刷新前，如果有时钟在跑要保存 running
 window.addEventListener("beforeunload", () => {
