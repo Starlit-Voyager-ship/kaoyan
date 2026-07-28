@@ -209,6 +209,31 @@
   }
   .filter-btn.active .badge { background: rgba(255,255,255,.28); }
 
+  /* 全部词汇：按错次排序按钮 */
+  .sort-btn {
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    padding: 8px 15px;
+    border-radius: 22px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sort-btn:hover { transform: translateY(-1px); border-color: #b91c1c; color: #b91c1c; }
+  .sort-btn.active {
+    background: linear-gradient(120deg, #ef4444 0%, #b91c1c 100%);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(185,28,28,.35);
+  }
+  .sort-btn .arrow { font-size: 15px; line-height: 1; }
+
   /* 历史错词模式：错次标签 */
   .wrong-count { text-align: center; white-space: nowrap; width: 60px; }
   .wrong-badge {
@@ -730,6 +755,7 @@
     <button class="filter-btn" data-mode="wrong">历史错词 <span class="badge" id="wrongBadge">0</span></button>
     <button class="filter-btn" data-mode="today">今日新词</button>
     <button class="filter-btn" data-mode="key">重点词</button>
+    <button class="sort-btn" id="btnSortWrong" title="按累计错次降序排列：错得最多的排在最上面（再点一次恢复默认顺序）"><span class="arrow">⇅</span> 按错次排序</button>
   </div>
 
   <div class="quiz-card">
@@ -1494,8 +1520,9 @@ let answered = false;
 let showAnswer = false;
 let wrongOnly = false;
 let roundResults = {};   // 本轮每个词状态：green / yellow / red
-let retryList = [];      // 本轮未掌握（黄+红）词，非空时优先作为测试词
-let roundCounted = {};   // 本轮是否已经为某词累计过错词次数（防手动标红重复计数）
+  let retryList = [];      // 本轮未掌握（黄+红）词，非空时优先作为测试词
+  let roundCounted = {};   // 本轮是否已经为某词累计过错词次数（防手动标红重复计数）
+  let vocabSortByWrong = false; // 全部词汇表是否按累计错次降序排列
 
 function parseRow(arr) {
   const o = {};
@@ -2713,6 +2740,15 @@ function renderList() {
   answered = false;
   const isAllMode = !retryList.length && currentMode === 'all';
   const isWrongMode = !retryList.length && currentMode === 'wrong';
+
+  // 按错次降序排列（仅全部词汇模式生效）
+  if (vocabSortByWrong && isAllMode) {
+    list = list.slice().sort((a, b) => (parseInt(b.wrong, 10) || 0) - (parseInt(a.wrong, 10) || 0));
+    currentList = list;
+  }
+  const sortBtn = document.getElementById("btnSortWrong");
+  if (sortBtn) sortBtn.classList.toggle("active", vocabSortByWrong && isAllMode);
+
   document.getElementById("quizSection").classList.toggle("all-mode", isAllMode);
 
   document.getElementById("quizTitle").textContent = retryList.length
@@ -2738,14 +2774,14 @@ function renderList() {
   const tbody = document.getElementById("wordBody");
   if (theadRow) {
     if (isAllMode) {
-      theadRow.innerHTML = `<th class="idx">#</th><th class="word">词汇</th><th class="pos">词性</th><th class="input-cell">中文释义</th><th class="fam-cell">熟词生义</th><th class="trans-cell">译次</th><th class="difficulty">难度</th>`;
+      theadRow.innerHTML = `<th class="idx">#</th><th class="word">词汇</th><th class="pos">词性</th><th class="input-cell">中文释义</th><th class="fam-cell">熟词生义</th><th class="trans-cell">译次</th><th class="wrong-count">错次</th><th class="difficulty">难度</th>`;
     } else if (isWrongMode) {
       theadRow.innerHTML = `<th class="idx">#</th><th class="word">词汇</th><th class="pos">词性</th><th class="input-cell">中文释义</th><th class="wrong-count">错次</th>`;
     } else {
       theadRow.innerHTML = `<th class="idx">#</th><th class="word">词汇</th><th class="pos">词性</th><th class="input-cell">中文释义</th><th class="difficulty">难度</th>`;
     }
   }
-  const emptyColspan = isAllMode ? 7 : (isWrongMode ? 5 : 5);
+  const emptyColspan = isAllMode ? 8 : (isWrongMode ? 5 : 5);
   if (list.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${emptyColspan}" class="empty">当前条件下没有词汇</td></tr>`;
     updateBadges();
@@ -2767,6 +2803,7 @@ function renderList() {
           <td class="input-cell">${escapeHtml(o.meaning)}</td>
           <td class="fam-cell">${o.familiar ? `<span class="fam">${escapeHtml(o.familiar)}</span>` : "—"}</td>
           <td class="trans-cell">${o.transCount >= 2 ? `<span class="trans-badge" title="翻译次数多=多次未记住，重点词">×${o.transCount}</span>` : (o.transCount || "")}</td>
+          <td class="wrong-count"><span class="wrong-badge" title="累计错误 ${o.wrong || 0} 次">×${o.wrong || 0}</span></td>
           <td class="difficulty">${diff}</td>
         </tr>
       `;
@@ -3499,6 +3536,17 @@ document.getElementById("filterBar").addEventListener("click", e => {
   roundCounted = {};
   showAnswer = false;
   document.getElementById("btnShowAns").textContent = "显示答案";
+  renderList();
+});
+document.getElementById("btnSortWrong").addEventListener("click", () => {
+  vocabSortByWrong = !vocabSortByWrong;
+  // 排序只在全部词汇视图下有意义；若当前不在全部词汇，自动切过去
+  if (currentMode !== 'all') {
+    currentMode = 'all';
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    const allBtn = document.querySelector('.filter-btn[data-mode="all"]');
+    if (allBtn) allBtn.classList.add("active");
+  }
   renderList();
 });
 document.getElementById("btnSubmit").addEventListener("click", submitQuiz);
