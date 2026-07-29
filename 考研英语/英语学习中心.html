@@ -435,6 +435,23 @@
     background: #fffbeb;
     color: #b45309;
   }
+  /* 全部词汇：遮住中文 / 点击单显 交互 */
+  td.cn-cell.hide { cursor: pointer; }
+  td.cn-cell.hide .cn-true { display: none; }
+  td.cn-cell.hide .cn-mask {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    background: var(--bg-muted, rgba(120,120,140,.16));
+    color: var(--text-muted, #93a0b4);
+    font-size: 13px;
+    user-select: none;
+    transition: background .15s;
+  }
+  td.cn-cell.hide:hover .cn-mask { background: var(--primary-soft, rgba(99,102,241,.22)); color: var(--primary, #818cf8); }
+  td.cn-cell.hide.revealed .cn-true { display: inline; }
+  td.cn-cell.hide.revealed .cn-mask { display: none; }
+  td.cn-cell.hide.revealed { background: transparent; }
   /* 每条结果后的三态判定按钮 */
   .verdict { display: flex; gap: 6px; margin-top: 7px; }
   .vdot {
@@ -774,6 +791,7 @@
     <button class="btn secondary" id="btnReset">重置当前</button>
     <button class="btn secondary" id="btnResample30" style="display:none;">🎲 再抽 30 词</button>
     <button class="btn secondary" id="btnToggleImport">导入词库</button>
+    <button class="btn secondary" id="btnToggleHideCn" style="display:none;" title="遮住全部中文释义，点击单个词可单独显示">🙈 遮住中文</button>
     <button class="btn secondary" id="btnConnect" title="连接词汇总表.md 所在文件夹，实现自动读写">连接词库</button>
     <span id="fsStatus" class="note" style="margin:0;"></span>
   </div>
@@ -1519,6 +1537,7 @@ let currentList = [];
 let answered = false;
 let showAnswer = false;
 let wrongOnly = false;
+let hideCnAnswers = false;   // 全部词汇：遮住中文释义（点击单显）
 let roundResults = {};   // 本轮每个词状态：green / yellow / red
   let retryList = [];      // 本轮未掌握（黄+红）词，非空时优先作为测试词
   let roundCounted = {};   // 本轮是否已经为某词累计过错词次数（防手动标红重复计数）
@@ -2770,6 +2789,20 @@ function renderList() {
             : "填中文释义，点「提交批改」；意思对、同义词都算过"));
   document.getElementById("resultPanel").classList.remove("show");
 
+  // 遮中文按钮：仅全部词汇模式可见，文案随状态切换
+  const hideBtn = document.getElementById("btnToggleHideCn");
+  if (hideBtn) {
+    hideBtn.style.display = isAllMode ? "inline-flex" : "none";
+    hideBtn.textContent = hideCnAnswers ? "👁️ 显示中文" : "🙈 遮住中文";
+    if (!hideBtn.__cnBound) {
+      hideBtn.addEventListener("click", () => {
+        hideCnAnswers = !hideCnAnswers;
+        renderList();
+      });
+      hideBtn.__cnBound = true;
+    }
+  }
+
   const theadRow = document.querySelector("#quizSection table thead tr");
   const tbody = document.getElementById("wordBody");
   if (theadRow) {
@@ -2795,12 +2828,15 @@ function renderList() {
       const hit = findTermInTodayArticles(o.word);
       const isColloc = hit && hit.type === 'colloc';
       const wordClass = isColloc ? 'word hl-blue' : 'word';
+      const cnCell = hideCnAnswers
+        ? `<td class="input-cell cn-cell hide" data-idx="${i}"><span class="cn-true" hidden>${escapeHtml(o.meaning)}</span><span class="cn-mask">👆 点击显示</span></td>`
+        : `<td class="input-cell cn-cell">${escapeHtml(o.meaning)}</td>`;
       return `
         <tr data-word="${escapeHtml(o.word)}">
           <td class="idx">${i + 1}</td>
           <td class="${wordClass}">${escapeHtml(o.word)}</td>
           <td class="pos">${escapeHtml(pos)}</td>
-          <td class="input-cell">${escapeHtml(o.meaning)}</td>
+          ${cnCell}
           <td class="fam-cell">${o.familiar ? `<span class="fam">${escapeHtml(o.familiar)}</span>` : "—"}</td>
           <td class="trans-cell">${o.transCount >= 2 ? `<span class="trans-badge" title="翻译次数多=多次未记住，重点词">×${o.transCount}</span>` : (o.transCount || "")}</td>
           <td class="wrong-count"><span class="wrong-badge" title="累计错误 ${o.wrong || 0} 次">×${o.wrong || 0}</span></td>
@@ -2808,6 +2844,16 @@ function renderList() {
         </tr>
       `;
     }).join("");
+    // 遮中文：点击单格切换显示/隐藏（事件委托，绑定一次）
+    const cnBody = document.getElementById("wordBody");
+    if (cnBody && !cnBody.__cnBound) {
+      cnBody.addEventListener("click", e => {
+        const td = e.target.closest("td.cn-cell.hide");
+        if (!td) return;
+        td.classList.toggle("revealed");
+      });
+      cnBody.__cnBound = true;
+    }
     updateBadges();
     return;
   }
