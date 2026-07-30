@@ -772,6 +772,7 @@
     <button class="filter-btn" data-mode="wrong">历史错词 <span class="badge" id="wrongBadge">0</span></button>
     <button class="filter-btn" data-mode="today">今日新词</button>
     <button class="filter-btn" data-mode="key">重点词</button>
+    <button class="filter-btn" data-mode="shanbay">📖 背单词</button>
     <button class="sort-btn" id="btnSortWrong" title="按累计错次降序排列：错得最多的排在最上面（再点一次恢复默认顺序）"><span class="arrow">⇅</span> 按错次排序</button>
     <button class="filter-btn" id="btnToggleHideCn" style="display:none;" title="遮住全部中文释义，点击单个词可单独显示">🙈 遮住中文</button>
   </div>
@@ -847,6 +848,14 @@
   <div class="footer-actions">
     <button class="btn" id="btnSubmitBottom">提交批改</button>
     <button class="btn secondary danger" id="btnClearStorage">清空本地学习记录</button>
+  </div>
+
+  <div id="shanbayPanel" style="display:none;">
+    <div class="quiz-card">
+      <div class="quiz-title">背单词 · 扇贝模式</div>
+      <div class="quiz-meta"><span>认知筛选 → 精学生词 → 间隔重复。词库＝当日记忆曲线测试词（与「记忆曲线选题」同一批）。</span></div>
+    </div>
+    <iframe id="shanbayFrame" src="背单词.html" style="width:100%;height:74vh;border:none;border-radius:14px;background:#fff;margin-top:12px;box-shadow:0 6px 20px rgba(31,39,51,.06);"></iframe>
   </div>
   </div><!-- /quizSection -->
 
@@ -3568,6 +3577,14 @@ document.getElementById("moduleTabs").addEventListener("click", e => {
 });
 document.getElementById("filterBar").addEventListener("click", e => {
   if (!e.target.classList.contains("filter-btn")) return;
+  const mode = e.target.dataset.mode;
+  if (mode === 'shanbay') {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    showShanbay(true);
+    return;
+  }
+  showShanbay(false);
   document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
   e.target.classList.add("active");
   currentMode = e.target.dataset.mode;
@@ -3584,6 +3601,35 @@ document.getElementById("filterBar").addEventListener("click", e => {
   document.getElementById("btnShowAns").textContent = "显示答案";
   renderList();
 });
+
+/* ============ 背单词（扇贝模式）iframe 集成 ============ */
+function showShanbay(on){
+  const sec = document.getElementById("quizSection");
+  const panel = document.getElementById("shanbayPanel");
+  Array.from(sec.children).forEach(ch => {
+    if (ch.id === "filterBar" || ch.id === "shanbayPanel") return;
+    ch.style.display = on ? "none" : "";
+  });
+  panel.style.display = on ? "" : "none";
+  if (on) postShanbayData();
+}
+function postShanbayData(){
+  const frame = document.getElementById("shanbayFrame");
+  if (!frame || !frame.contentWindow) return;
+  const words = (typeof filterWords === "function")
+    ? filterWords("curve").map(o => ({ word:o.word, meaning:o.meaning, phonetic:"", example:"" }))
+    : [];
+  frame.contentWindow.postMessage({
+    type:"shanbay-data",
+    user:(window.getCurrentUser && window.getCurrentUser()) || "",
+    words
+  }, "*");
+}
+window.addEventListener("message", e => {
+  if (e && e.data && e.data.type === "shanbay-ready") postShanbayData();
+});
+document.getElementById("shanbayFrame").addEventListener("load", postShanbayData);
+
 document.getElementById("btnSortWrong").addEventListener("click", () => {
   vocabSortByWrong = !vocabSortByWrong;
   // 排序只在全部词汇视图下有意义；若当前不在全部词汇，自动切过去

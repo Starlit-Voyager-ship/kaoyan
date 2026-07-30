@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>背单词 · 扇贝模式</title>
+<style>
+  :root{
+    --bg:#f5f7fb; --bg2:#eef2f7; --card:#ffffff; --text:#1f2733; --muted:#6b7280;
+    --border:#e5e7eb; --primary:#6366f1; --primary-d:#4f46e5; --eng:#0ea5e9;
+    --success:#22c55e; --danger:#ef4444;
+    --shadow:0 10px 25px -5px rgba(0,0,0,.06), 0 8px 10px -6px rgba(0,0,0,.02);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,var(--bg),var(--bg2)) fixed;color:var(--text);
+    min-height:100vh;padding:18px;}
+  .wrap{max-width:720px;margin:0 auto;}
+  .stats{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:8px 14px;font-size:13px;color:var(--muted);box-shadow:var(--shadow);}
+  .stat b{color:var(--primary-d);font-size:16px;margin-right:4px;}
+  .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#cbd5e1;margin-bottom:6px;box-shadow:inset 0 1px 2px rgba(0,0,0,.05);}
+  .bar > i{display:block;height:100%;transition:width .3s ease;}
+  .bar .g{background:var(--success);} .bar .o{background:var(--danger);} .bar .n{background:#cbd5e1;}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:16px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;
+    padding:30px 26px;min-height:280px;display:flex;flex-direction:column;justify-content:center;
+    box-shadow:var(--shadow);}
+  .wordrow{display:flex;align-items:center;gap:14px;}
+  .word{font-size:38px;font-weight:700;letter-spacing:.5px;color:var(--text);}
+  .spk{flex:none;width:48px;height:48px;border-radius:50%;border:1.5px solid var(--border);
+    background:#f0f9ff;color:var(--eng);font-size:22px;cursor:pointer;transition:all .15s ease;}
+  .spk:hover{background:var(--eng);color:#fff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(14,165,233,.25);}
+  .phon{color:var(--muted);font-size:18px;margin:8px 0 18px;}
+  .tag{display:inline-block;align-self:flex-start;font-size:12px;padding:3px 12px;border-radius:20px;margin-bottom:14px;font-weight:600;}
+  .tag.new{background:rgba(99,102,241,.12);color:var(--primary-d);}
+  .tag.review{background:rgba(14,165,233,.14);color:#0369a1;}
+  .tag.learn{background:rgba(239,68,68,.12);color:#b91c1c;}
+  .btns{display:flex;gap:14px;margin-top:8px;}
+  button.act{flex:1;padding:16px;border:none;border-radius:12px;font-size:17px;font-weight:700;
+    cursor:pointer;transition:transform .06s,filter .15s,box-shadow .15s;color:#fff;}
+  button.act:active{transform:translateY(1px);}
+  .b-known{background:var(--success);} .b-unknown{background:var(--danger);} .b-go{background:var(--primary);}
+  button.act:hover{filter:brightness(1.05);box-shadow:0 6px 16px rgba(0,0,0,.12);}
+  .meaning{font-size:22px;line-height:1.6;margin:6px 0;color:var(--text);}
+  .example{color:var(--muted);font-size:15px;line-height:1.7;margin-top:10px;
+    border-left:3px solid var(--eng);padding-left:12px;background:#f8fafc;border-radius:0 8px 8px 0;}
+  .done{text-align:center;}
+  .done h2{font-size:24px;margin:0 0 10px;color:var(--text);}
+  .done p{color:var(--muted);margin:6px 0;}
+  .row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+  .row button{flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);
+    color:var(--text);font-size:14px;padding:12px;border-radius:12px;cursor:pointer;font-weight:600;}
+  .row button:hover{border-color:var(--primary);color:var(--primary-d);}
+  .tools{margin-top:22px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow);}
+  .tools .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .tools .bank{font-size:13px;color:var(--muted);}
+  .tools .bank b{color:var(--primary-d);}
+  .tools label{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;margin-left:6px;}
+  input[type=number]{width:64px;background:#fff;border:1.5px solid var(--border);color:var(--text);
+    border-radius:8px;padding:6px 8px;font-size:13px;}
+  .mini{font-size:13px;padding:8px 13px;background:var(--card);border:1.5px solid var(--border);
+    color:var(--text);border-radius:10px;cursor:pointer;font-weight:600;}
+  .mini:hover{border-color:var(--primary);color:var(--primary-d);}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text);margin-left:8px;cursor:pointer;}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;}
+  .loading{text-align:center;color:var(--muted);padding:40px;font-size:15px;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><b id="s-new">0</b>今日新学</div>
+    <div class="stat"><b id="s-rev">0</b>今日复习</div>
+    <div class="stat"><b id="s-streak">0</b>连续天数</div>
+  </div>
+
+  <div class="bar"><i class="g" id="bar-g"></i><i class="o" id="bar-o"></i><i class="n" id="bar-n"></i></div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--success)"></i>认识 <b id="lg-g">0</b></span>
+    <span><i class="dot" style="background:var(--danger)"></i>不认识 <b id="lg-o">0</b></span>
+    <span><i class="dot" style="background:#cbd5e1"></i>待学 <b id="lg-n">0</b></span>
+    <span style="margin-left:auto">共 <b id="lg-t">0</b> 词</span>
+  </div>
+
+  <!-- 认知筛选屏 -->
+  <div class="card" id="screen-filter">
+    <span class="tag" id="f-tag">新词</span>
+    <div class="wordrow">
+      <div class="word" id="f-word">word</div>
+      <button class="spk" onclick="pronounce()" title="发音">🔊</button>
+    </div>
+    <div class="phon" id="f-phon"></div>
+    <div class="btns">
+      <button class="act b-known" onclick="answer(true)">认识</button>
+      <button class="act b-unknown" onclick="answer(false)">不认识</button>
+    </div>
+  </div>
+
+  <!-- 学习屏 -->
+  <div class="card hidden" id="screen-learn">
+    <span class="tag learn">生词详解</span>
+    <div class="wordrow">
+      <div class="word" id="l-word">word</div>
+      <button class="spk" onclick="pronounce()" title="发音">🔊</button>
+    </div>
+    <div class="phon" id="l-phon"></div>
+    <div class="meaning" id="l-meaning">释义</div>
+    <div class="example" id="l-example"></div>
+    <div class="btns">
+      <button class="act b-go" onclick="learned()">我记住了</button>
+    </div>
+  </div>
+
+  <!-- 确认屏（点“认识”后显示意思，可悔棋） -->
+  <div class="card hidden" id="screen-confirm">
+    <span class="tag review">确认一下</span>
+    <div class="wordrow">
+      <div class="word" id="c-word">word</div>
+      <button class="spk" onclick="pronounce()" title="发音">🔊</button>
+    </div>
+    <div class="phon" id="c-phon"></div>
+    <div class="meaning" id="c-meaning">释义</div>
+    <div class="example" id="c-example"></div>
+    <div class="btns">
+      <button class="act b-unknown" onclick="confirmWrong()">记错了</button>
+      <button class="act b-go" onclick="confirmNext()">下一个</button>
+    </div>
+  </div>
+
+  <!-- 加载 / 空状态 -->
+  <div class="card hidden" id="screen-loading">
+    <div class="loading" id="loading-msg">正在从「当日记忆曲线测试词」载入词库…</div>
+  </div>
+
+  <!-- 完成屏 -->
+  <div class="card done hidden" id="screen-done">
+    <h2>🎉 这一轮搞定啦</h2>
+    <p id="d-msg">没有待处理卡片了。</p>
+    <div class="row">
+      <button onclick="replayAll()">再刷一轮</button>
+      <button onclick="resetSession()">重置本轮(继续学新词)</button>
+    </div>
+  </div>
+
+  <!-- 工具区 -->
+  <div class="tools">
+    <div class="top">
+      <div class="bank">词库：<b id="bankInfo">加载中…</b></div>
+      <div>
+        <label>每轮新词<input type="number" id="set-new" value="20" min="1" max="200" onchange="saveSettings()"></label>
+        <label class="chk"><input type="checkbox" id="set-audio" checked onchange="saveSettings()"> 自动发音</label>
+        <button class="mini" onclick="resetProgress()">↺ 重置背单词进度</button>
+      </div>
+    </div>
+    <div class="hint">认知筛选 → 精学生词 → 间隔重复（Leitner 盒：0,1,2,4,7,15,30,60 天）。看到单词即朗读（正常语速）；点「认识」显示释义确认，点「不认识」进入精学。进度按当前账号本地保存。</div>
+  </div>
+</div>
+
+<script>
+const DAY = 86400000;
+const INTERVALS = [0,1,2,4,7,15,30,60]; // 天
+const PROG_KEY = 'shanbay-progress-v1';
+const SET_KEY  = 'shanbay-settings-v1';
+const STAT_KEY = 'shanbay-stats-v1';
+
+/* 优先用父页面（考研学习中心）暴露的账号存储，保证按当前账号隔离 */
+const P = (window.parent && window.parent !== window) ? window.parent : window;
+const uStorage = P.uStorage || window.localStorage;
+
+let words = [];
+let progress = {};
+let settings = { newPerSession: 20, autoAudio: true };
+let stats = { streak:0, lastDate:'' };
+let session = { newCount:0, newToday:0, revToday:0, seen:new Set() };
+let current = null, mode='new', bankReady = false;
+
+/* ===== 发音 (Web Speech API，正常语速，看到单词即读) ===== */
+let voices = [];
+let voicesReady = false;
+let pendingSpeak = null;
+let audioUnlocked = false;
+function loadVoices(){
+  if(!('speechSynthesis' in window)) return;
+  voices = speechSynthesis.getVoices();
+  if(voices.length && !voicesReady){
+    voicesReady = true;
+    if(pendingSpeak){ const w = pendingSpeak; pendingSpeak = null; pronounce(w); }
+  }
+}
+if('speechSynthesis' in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function pickVoice(){
+  return voices.find(v=>/en[-_]US/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang)) || null;
+}
+function pronounce(t){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    const wasSpeaking = speechSynthesis.speaking;
+    if(wasSpeaking) speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(t || (current&&current.word) || '');
+    u.lang='en-US'; u.rate=1; u.pitch=1;
+    const v = pickVoice(); if(v) u.voice = v;
+    if(wasSpeaking){ setTimeout(()=>{ try{speechSynthesis.speak(u);}catch(e){} }, 40); }
+    else { speechSynthesis.speak(u); }
+  }catch(e){}
+}
+function maybeSpeak(word){
+  if(!settings.autoAudio || !word) return;
+  if(!audioUnlocked){ pendingSpeak = word; return; }
+  if(voicesReady) pronounce(word);
+  else pendingSpeak = word;
+}
+function unlockAudio(e){
+  if(audioUnlocked) return;
+  if('speechSynthesis' in window){ try{ const d=new SpeechSynthesisUtterance(' '); d.volume=0; speechSynthesis.speak(d); }catch(e){} }
+  audioUnlocked = true;
+  window.removeEventListener('pointerdown', unlockAudio);
+  window.removeEventListener('keydown', unlockAudio);
+  if(pendingSpeak){ const w=pendingSpeak; pendingSpeak=null; setTimeout(()=>pronounce(w),40); }
+}
+
+/* ===== 词库来源：父页面 postMessage（当日记忆曲线测试词） ===== */
+function todayStr(){
+  const d = new Date(); const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function initBank(list){
+  loadProgress();
+  words = list.map(w => {
+    const p = progress[w.word] || {};
+    return {
+      word: w.word,
+      meaning: w.meaning || '',
+      phonetic: w.phonetic || '',
+      example: w.example || '',
+      status: p.status || 'new',
+      box: p.box || 0,
+      nextReview: p.nextReview || 0,
+      firstSeen: p.firstSeen || ''
+    };
+  });
+  bankReady = true;
+  document.getElementById('bankInfo').textContent = words.length + ' 词（当日记忆曲线）';
+  renderStats();
+  nextCard();
+}
+function showLoading(msg){
+  document.getElementById('screen-filter').classList.add('hidden');
+  document.getElementById('screen-learn').classList.add('hidden');
+  document.getElementById('screen-confirm').classList.add('hidden');
+  document.getElementById('screen-done').classList.add('hidden');
+  const el = document.getElementById('screen-loading');
+  el.classList.remove('hidden');
+  if(msg) document.getElementById('loading-msg').textContent = msg;
+}
+window.addEventListener('message', e => {
+  if(!e.data) return;
+  if(e.data.type === 'shanbay-data'){
+    const list = e.data.words || [];
+    if(list.length){ initBank(list); }
+    else { showLoading('当日记忆曲线还没有待复习的词，去「记忆曲线选题」学几个词再来背吧～'); }
+  }
+});
+/* 通知父页面“我准备好了”，父页面会回传词库 */
+if(window.parent && window.parent !== window){
+  window.parent.postMessage({ type:'shanbay-ready' }, '*');
+}
+/* 兜底：若 800ms 内未收到父页面数据（例如直接双击打开本文件），自行从 localStorage 读当日曲线词 */
+setTimeout(function(){
+  if(bankReady) return;
+  loadDirect();
+}, 800);
+
+function loadDirect(){
+  try{
+    const u = window.localStorage.getItem('kaoyan-active-user') || '';
+    const raw = window.localStorage.getItem('user:'+u+':vocab-quiz-data-v1');
+    if(!raw){ showLoading('未检测到词库，请在考研学习中心内打开本模块。'); return; }
+    const arr = JSON.parse(raw);
+    const COLS=["word","meaning","familiar","firstArticle","count","articles","wrong","learnDate","nextReview","history","transCount"];
+    const vocab = arr.map(r=>{ const o={}; COLS.forEach((c,i)=>o[c]=String(r[i]??'').trim()); return o; });
+    const today = todayStr();
+    const due = vocab.filter(o=> !o.nextReview || o.nextReview <= today);
+    const {seed,count} = getDailyCurve(today, u);
+    const list = seededShuffle(due, seed).slice(0, Math.min(count, due.length))
+      .map(o=>({word:o.word, meaning:o.meaning, phonetic:'', example:''}));
+    if(list.length) initBank(list);
+    else showLoading('当日记忆曲线还没有待复习的词。');
+  }catch(err){ showLoading('读取词库失败：' + (err&&err.message||err)); }
+}
+function getDailyCurve(today, u){
+  const keySeed='user:'+u+':curve-daily-seed-'+today;
+  const keyCount='user:'+u+':curve-daily-count-'+today;
+  let seed=window.localStorage.getItem(keySeed);
+  let count=parseInt(window.localStorage.getItem(keyCount),10);
+  if(!seed || !Number.isInteger(count)){
+    seed=Math.random().toString(36).slice(2);
+    count=Math.floor(Math.random()*(75-50+1))+50;
+    window.localStorage.setItem(keySeed,seed);
+    window.localStorage.setItem(keyCount,String(count));
+  }
+  return {seed,count};
+}
+function seededShuffle(arr,seedStr){
+  let h = 2166136261;
+  for(let i=0;i<seedStr.length;i++){ h^=seedStr.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
+  const copy=[...arr];
+  for(let i=copy.length-1;i>0;i--){
+    h=(h*1664525+1013904223)>>>0;
+    const j=h%(i+1);
+    [copy[i],copy[j]]=[copy[j],copy[i]];
+  }
+  return copy;
+}
+
+/* ===== 进度持久化 ===== */
+function loadProgress(){ try{ progress = JSON.parse(uStorage.getItem(PROG_KEY)||'{}')||{}; }catch(e){ progress={}; } }
+function saveProgress(){ uStorage.setItem(PROG_KEY, JSON.stringify(progress)); }
+function persist(){
+  if(current) progress[current.word] = {
+    status: current.status, box: current.box,
+    nextReview: current.nextReview, firstSeen: current.firstSeen
+  };
+  saveProgress();
+}
+function persistAll(){
+  progress = {};
+  words.forEach(w=>{ progress[w.word] = { status:w.status, box:w.box, nextReview:w.nextReview, firstSeen:w.firstSeen }; });
+  saveProgress();
+}
+
+/* ===== 设置 / 统计 ===== */
+function load(){
+  try{ settings = JSON.parse(uStorage.getItem(SET_KEY)||'null')||settings; }catch(e){}
+  try{ stats = JSON.parse(uStorage.getItem(STAT_KEY)||'null')||stats; }catch(e){}
+  document.getElementById('set-new').value = settings.newPerSession;
+  document.getElementById('set-audio').checked = settings.autoAudio!==false;
+  bumpStreak();
+}
+function saveSettings(){
+  settings.newPerSession = parseInt(document.getElementById('set-new').value)||20;
+  settings.autoAudio = document.getElementById('set-audio').checked;
+  uStorage.setItem(SET_KEY, JSON.stringify(settings));
+}
+function bumpStreak(){
+  const t = todayStr();
+  if(stats.lastDate !== t){
+    if(stats.lastDate){
+      const y = new Date(Date.now()-DAY).toISOString().slice(0,10);
+      stats.streak = (stats.lastDate===y) ? stats.streak+1 : 1;
+    } else stats.streak = 1;
+    stats.lastDate = t;
+    uStorage.setItem(STAT_KEY, JSON.stringify(stats));
+  }
+}
+function resetSession(){ session.newCount=0; nextCard(); }
+
+/* ===== 卡片流转 ===== */
+function nextCard(){
+  if(!bankReady){ showLoading(); return; }
+  const now = Date.now();
+  let due = words.filter(w=>w.status!=='new' && w.nextReview<=now).sort((a,b)=>a.nextReview-b.nextReview);
+  if(due.length){ current=due[0]; mode='review'; return showFilter('review'); }
+  let news = words.filter(w=>w.status==='new');
+  if(news.length && session.newCount < settings.newPerSession){
+    current=news[0]; mode='new';
+    if(!session.seen.has(current.word)){ current.firstSeen=todayStr(); session.seen.add(current.word); session.newToday++; }
+    return showFilter('new');
+  }
+  showDone();
+}
+function showFilter(kind){
+  document.getElementById('screen-filter').classList.remove('hidden');
+  document.getElementById('screen-learn').classList.add('hidden');
+  document.getElementById('screen-done').classList.add('hidden');
+  document.getElementById('screen-confirm').classList.add('hidden');
+  document.getElementById('screen-loading').classList.add('hidden');
+  const tag = document.getElementById('f-tag');
+  tag.textContent = kind==='review' ? '复习' : '新词';
+  tag.className = 'tag ' + (kind==='review'?'review':'new');
+  document.getElementById('f-word').textContent = current.word;
+  const ph = document.getElementById('f-phon');
+  ph.textContent = current.phonetic || '';
+  ph.style.display = current.phonetic ? '' : 'none';
+  renderStats();
+  maybeSpeak(current.word);
+}
+function showLearn(){
+  document.getElementById('screen-filter').classList.add('hidden');
+  document.getElementById('screen-learn').classList.remove('hidden');
+  document.getElementById('screen-done').classList.add('hidden');
+  document.getElementById('screen-confirm').classList.add('hidden');
+  document.getElementById('screen-loading').classList.add('hidden');
+  document.getElementById('l-word').textContent = current.word;
+  const ph = document.getElementById('l-phon');
+  ph.textContent = current.phonetic || '';
+  ph.style.display = current.phonetic ? '' : 'none';
+  document.getElementById('l-meaning').textContent = current.meaning || '(无释义)';
+  const ex = document.getElementById('l-example');
+  ex.textContent = current.example || '';
+  ex.style.display = current.example ? '' : 'none';
+  maybeSpeak(current.word);
+}
+function showConfirm(){
+  document.getElementById('screen-filter').classList.add('hidden');
+  document.getElementById('screen-learn').classList.add('hidden');
+  document.getElementById('screen-done').classList.add('hidden');
+  document.getElementById('screen-confirm').classList.remove('hidden');
+  document.getElementById('screen-loading').classList.add('hidden');
+  document.getElementById('c-word').textContent = current.word;
+  const ph = document.getElementById('c-phon');
+  ph.textContent = current.phonetic || '';
+  ph.style.display = current.phonetic ? '' : 'none';
+  document.getElementById('c-meaning').textContent = current.meaning || '(无释义)';
+  const ex = document.getElementById('c-example');
+  ex.textContent = current.example || '';
+  ex.style.display = current.example ? '' : 'none';
+  maybeSpeak(current.word);
+}
+function showDone(){
+  document.getElementById('screen-filter').classList.add('hidden');
+  document.getElementById('screen-learn').classList.add('hidden');
+  document.getElementById('screen-done').classList.remove('hidden');
+  document.getElementById('screen-confirm').classList.add('hidden');
+  document.getElementById('screen-loading').classList.add('hidden');
+  document.getElementById('d-msg').textContent =
+    '本轮新学 '+session.newToday+' 个，复习 '+session.revToday+' 个。到期词会按遗忘曲线自动回来～';
+  renderStats();
+}
+
+function answer(known){
+  if(known){ return showConfirm(); }
+  const now = Date.now();
+  if(current.status!=='new') session.revToday++;
+  current.status='unknown'; current.box=0; current.nextReview=now;
+  persist(); showLearn();
+}
+function confirmWrong(){
+  const now = Date.now();
+  if(current.status!=='new') session.revToday++;
+  current.status='unknown'; current.box=0; current.nextReview=now;
+  persist(); nextCard();
+}
+function confirmNext(){
+  const now = Date.now();
+  if(current.status==='new'){ session.newCount++; }
+  else { session.revToday++; }
+  current.status='known';
+  current.box = Math.min((current.box||0)+1, INTERVALS.length-1);
+  current.nextReview = now + INTERVALS[current.box]*DAY;
+  persist(); nextCard();
+}
+function learned(){
+  current.nextReview = Date.now() + INTERVALS[1]*DAY;
+  persist(); nextCard();
+}
+
+function renderStats(){
+  let g=0,o=0,n=0;
+  words.forEach(w=>{ if(w.status==='known')g++; else if(w.status==='unknown')o++; else n++; });
+  const t = words.length||1;
+  document.getElementById('bar-g').style.width = (g/t*100)+'%';
+  document.getElementById('bar-o').style.width = (o/t*100)+'%';
+  document.getElementById('bar-n').style.width = (n/t*100)+'%';
+  document.getElementById('lg-g').textContent=g;
+  document.getElementById('lg-o').textContent=o;
+  document.getElementById('lg-n').textContent=n;
+  document.getElementById('lg-t').textContent=words.length;
+  document.getElementById('s-new').textContent=session.newToday;
+  document.getElementById('s-rev').textContent=session.revToday;
+  document.getElementById('s-streak').textContent=stats.streak;
+}
+
+function replayAll(){
+  const now = Date.now();
+  words.forEach(w=>{ w.nextReview = now; });
+  persistAll();
+  session={newCount:0,newToday:0,revToday:0,seen:new Set()};
+  nextCard();
+}
+function resetProgress(){
+  if(!confirm('确定清空背单词的掌握进度吗？词库（当日记忆曲线词）不变，所有词重新从「待学」开始。')) return;
+  progress = {}; saveProgress();
+  words.forEach(w=>{ w.status='new'; w.box=0; w.nextReview=0; w.firstSeen=''; });
+  session={newCount:0,newToday:0,revToday:0,seen:new Set()};
+  renderStats(); nextCard();
+}
+
+load();
+if(window.parent === window){
+  /* 直接打开（非 iframe）时，页面加载后即尝试自行读词库 */
+  loadDirect();
+}
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('keydown', unlockAudio);
+</script>
+</body>
+</html>
