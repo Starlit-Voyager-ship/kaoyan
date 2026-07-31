@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>题集</title>
+<script>console.log('📚 bank.html v=1 LOADED');</script>
+<script src="../../account.js"></script>
+<script>
+window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)'],['$$','$$']]}, startup:{pageReady:function(){return MathJax.startup.defaultPageReady();}} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  .bk-prob{max-width:420px;}
+  .bk-img{height:34px;border-radius:6px;vertical-align:middle;margin-left:6px;cursor:zoom-in;border:1px solid var(--border);}
+  .detail-img{max-width:100%;border-radius:12px;border:1px solid var(--border);margin:10px 0;}
+  .detail-block{background:var(--bg);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-top:10px;}
+  .detail-block .lab{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+  .detail-block .txt{white-space:pre-wrap;line-height:1.7;word-break:break-word;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="mc-topbar">
+    <div>
+      <h1>📚 题集</h1>
+      <div class="sub">全部收录题 · 检索浏览（只读）</div>
+    </div>
+    <div class="right" id="headStat"></div>
+  </div>
+  <div class="mc-body">
+    <div class="mc-toolbar">
+      <input type="text" id="q" placeholder="搜索题面 / 知识点 / 备注…">
+      <select id="fBook"><option value="">全部来源</option></select>
+      <select id="fKp"><option value="">全部知识点</option></select>
+      <select id="fReason"><option value="">全部错因</option></select>
+      <select id="fStatus">
+        <option value="">全部状态</option>
+        <option value="攻克中">攻克中</option>
+        <option value="已掌握">已掌握</option>
+      </select>
+      <select id="fEntry"><option value="">全部录入</option></select>
+    </div>
+    <div class="mc-card" style="padding:0;overflow:hidden;">
+      <table class="mc-table">
+        <thead><tr><th>题面</th><th>来源</th><th>知识点</th><th>错因</th><th>状态</th><th>录入</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="mc-mask" id="modalMask">
+  <div class="mc-modal">
+    <button class="close" id="modalClose">✕</button>
+    <h3 id="dTitle">题目详情</h3>
+    <div id="dBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="../js/storage.js?v=4"></script>
+<script src="../js/stats.js?v=2"></script>
+<script>
+(function () {
+  "use strict";
+  if (window.MathStore && MathStore.migrateIfNeeded) MathStore.migrateIfNeeded();
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var _t=0;
+  function typeset(){ if(window.MathJax&&MathJax.typesetPromise){MathJax.typesetPromise().catch(function(){});} else if(_t++<25){setTimeout(typeset,200);} }
+  function kp(r){return MathStore.normPoints(r);}
+  function entryOf(r){return r.from||r.entry||(r.image?"网页拍题":"手动");}
+
+  function fillFilters(){
+    var data=MathStore.getMistakes();
+    var books={},kps={},reasons={},entries={};
+    data.forEach(function(r){
+      if(r.book)books[r.book]=1;
+      kp(r).forEach(function(k){if(k)kps[k]=1;});
+      if(r.reason)reasons[r.reason]=1;
+      var e=entryOf(r); if(e)entries[e]=1;
+    });
+    document.getElementById("fBook").innerHTML='<option value="">全部来源</option>'+Object.keys(books).sort().map(function(b){return '<option>'+esc(b)+'</option>';}).join("");
+    document.getElementById("fKp").innerHTML='<option value="">全部知识点</option>'+Object.keys(kps).sort().map(function(k){return '<option>'+esc(k)+'</option>';}).join("");
+    document.getElementById("fReason").innerHTML='<option value="">全部错因</option>'+Object.keys(reasons).sort().map(function(x){return '<option>'+esc(x)+'</option>';}).join("");
+    document.getElementById("fEntry").innerHTML='<option value="">全部录入</option>'+Object.keys(entries).sort().map(function(x){return '<option>'+esc(x)+'</option>';}).join("");
+  }
+
+  function render(){
+    var data=MathStore.getMistakes();
+    var q=document.getElementById("q").value.trim().toLowerCase();
+    var fb=document.getElementById("fBook").value, fk=document.getElementById("fKp").value,
+        fr=document.getElementById("fReason").value, fs=document.getElementById("fStatus").value,
+        fe=document.getElementById("fEntry").value;
+    var list=data.filter(function(r){
+      if(fb&&r.book!==fb)return false;
+      if(fr&&(r.reason||"")!==fr)return false;
+      if(fs&&(r.status||"攻克中")!==fs)return false;
+      if(fe&&entryOf(r)!==fe)return false;
+      if(fk&&kp(r).indexOf(fk)<0)return false;
+      if(q){var hay=(r.problem||"")+" "+kp(r).join(" ")+" "+(r.note||"");if(hay.toLowerCase().indexOf(q)<0)return false;}
+      return true;
+    });
+    document.getElementById("headStat").innerHTML="共 <b>"+data.length+"</b> 道"+(list.length!==data.length?(" · 筛选出 <b>"+list.length+"</b>"):"");
+
+    var tb=document.getElementById("rows");
+    if(!list.length){tb.innerHTML='<tr><td colspan="6"><div class="mc-empty"><div class="big">🔍</div>'+(data.length?"无匹配结果":"题集为空，去 AI 助理收录吧")+'</div></td></tr>';return;}
+    tb.innerHTML=list.map(function(r){
+      var prob=(r.problem||"(无题面)").slice(0,60);
+      var img=r.image?'<img class="bk-img" src="'+esc(r.image)+'" data-zoom="1">':"";
+      return '<tr data-id="'+esc(r.id)+'">'+
+        '<td class="prob">'+esc(prob)+(r.problem&&r.problem.length>60?"…":"")+img+'</td>'+
+        '<td>'+(r.book?'<span class="mc-tag book">'+esc(r.book)+'</span>':'<span class="mc-muted">—</span>')+'</td>'+
+        '<td>'+(kp(r).length?kp(r).map(function(k){return '<span class="mc-tag kp">'+esc(k)+'</span>';}).join(" "):'<span class="mc-muted">—</span>')+'</td>'+
+        '<td>'+(r.reason?'<span class="mc-tag reason">'+esc(r.reason)+'</span>':'<span class="mc-muted">—</span>')+'</td>'+
+        '<td><span class="mc-tag '+(r.status==="已掌握"?"ok":"warn")+'">'+esc(r.status||"攻克中")+'</span></td>'+
+        '<td><span class="mc-muted">'+esc(entryOf(r))+'</span></td>'+
+      '</tr>';
+    }).join("");
+    typeset();
+  }
+
+  var curId=null;
+  function openDetail(id){
+    var r=MathStore.getById(id); if(!r)return; curId=id;
+    document.getElementById("dTitle").textContent=r.book?("📘 "+r.book):"题目详情";
+    var img=r.image?'<img class="detail-img" src="'+esc(r.image)+'">':"";
+    document.getElementById("dBody").innerHTML=
+      '<div class="mis-prob" style="font-size:15px;font-weight:600;line-height:1.7;white-space:pre-wrap;">'+esc(r.problem||"(无题面)")+'</div>'+img+
+      (r.answer?'<div class="detail-block"><div class="lab">答案</div><div class="txt">'+esc(r.answer)+'</div></div>':'')+
+      (r.solution?'<div class="detail-block"><div class="lab">解析</div><div class="txt">'+esc(r.solution)+'</div></div>':'')+
+      (r.note?'<div class="detail-block"><div class="lab">我的备注</div><div class="txt">'+esc(r.note)+'</div></div>':'')+
+      (kp(r).length?'<div class="detail-block"><div class="lab">知识点</div><div class="txt">'+kp(r).map(esc).join("、")+'</div></div>':'')+
+      (r.reason?'<div class="detail-block"><div class="lab">错因</div><div class="txt">'+esc(r.reason)+'</div></div>':'');
+    document.getElementById("modalMask").classList.add("show");
+    typeset();
+  }
+  function closeDetail(){document.getElementById("modalMask").classList.remove("show");curId=null;}
+
+  document.getElementById("rows").addEventListener("click",function(e){
+    var tr=e.target.closest("tr[data-id]"); if(!tr)return;
+    var id=tr.getAttribute("data-id");
+    if(e.target.dataset.zoom){openDetail(id);return;}
+    openDetail(id);
+  });
+  document.getElementById("modalClose").onclick=closeDetail;
+  document.getElementById("modalMask").addEventListener("click",function(e){if(e.target.id==="modalMask")closeDetail();});
+  ["q","fBook","fKp","fReason","fStatus","fEntry"].forEach(function(id){
+    document.getElementById(id).addEventListener("input",render);
+    document.getElementById(id).addEventListener("change",render);
+  });
+
+  fillFilters();
+  render();
+  window.addEventListener("load",typeset);
+})();
+</script>
+</body>
+</html>

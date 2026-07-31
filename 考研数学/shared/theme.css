@@ -1,0 +1,136 @@
+/* 数学中心 · 共享主题（所有模块统一引用）
+ * 配色取自考研学习中心浅色风：靛蓝→天蓝渐变、白卡。
+ * 改这里即可全局调整，模块各自只写少量特定样式。
+ */
+:root{
+  --bg:#eef1f6; --bg2:#e3e8f0; --card:#ffffff;
+  --text:#1f2733; --muted:#7a869a; --border:#e6e9f0;
+  --primary:#6366f1; --primary-d:#4f46e5;
+  --accent-teal:#0d9488; --warn:#dc2626;
+  --sky:#0ea5e9; --amber:#f59e0b;
+  --radius:16px; --shadow:0 4px 18px rgba(31,39,51,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  background:linear-gradient(160deg,var(--bg),var(--bg2));
+  color:var(--text);font-size:14px;line-height:1.6;
+}
+a{color:var(--primary-d);text-decoration:none;}
+
+/* ── 页面布局：顶部品牌条 + 内容区 ── */
+.mc-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(135deg,var(--primary),var(--sky));color:#fff;
+  padding:14px 22px;box-shadow:0 6px 20px rgba(99,102,241,.22);flex-shrink:0;
+}
+.mc-topbar h1{margin:0;font-size:18px;font-weight:800;letter-spacing:.5px;}
+.mc-topbar .sub{font-size:12px;opacity:.9;margin-top:2px;}
+.mc-topbar .right{display:flex;align-items:center;gap:10px;font-size:13px;}
+.mc-body{flex:1;overflow-y:auto;padding:22px;scroll-behavior:smooth;}
+.mc-body::-webkit-scrollbar{width:6px;}
+.mc-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.page{
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+}
+
+/* ── 区块标题（带左侧色条）── */
+.mc-sec{margin-bottom:26px;}
+.mc-sec-title{
+  display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;
+  color:var(--text);margin-bottom:12px;
+}
+.mc-sec-title::before{
+  content:"";width:4px;height:16px;border-radius:3px;
+  background:linear-gradient(var(--primary),var(--sky));
+}
+.mc-sec-title .hint{font-size:12px;font-weight:500;color:var(--muted);margin-left:auto;}
+
+/* ── 卡片 ── */
+.mc-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);
+}
+.mc-grid{display:grid;gap:14px;}
+.mc-grid.cols-2{grid-template-columns:repeat(2,1fr);}
+.mc-grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.mc-grid.cols-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:880px){.mc-grid.cols-2,.mc-grid.cols-3,.mc-grid.cols-4{grid-template-columns:1fr;}}
+
+/* ── 统计数字卡 ── */
+.mc-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;box-shadow:var(--shadow);text-align:center;}
+.mc-stat .num{font-size:26px;font-weight:800;color:var(--primary-d);line-height:1.2;}
+.mc-stat .lbl{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* ── 标签 ── */
+.mc-tag{display:inline-block;padding:2px 9px;border-radius:9px;font-size:12px;
+  font-weight:600;background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.mc-tag.book{background:rgba(14,165,233,.1);color:var(--sky);border-color:rgba(14,165,233,.25);}
+.mc-tag.kp{background:rgba(99,102,241,.1);color:var(--primary-d);border-color:rgba(99,102,241,.25);}
+.mc-tag.reason{background:rgba(220,38,38,.08);color:var(--warn);border-color:rgba(220,38,38,.22);}
+.mc-tag.warn{background:rgba(245,158,11,.12);color:var(--amber);border-color:rgba(245,158,11,.3);}
+.mc-tag.ok{background:rgba(13,148,136,.1);color:var(--accent-teal);border-color:rgba(13,148,136,.25);}
+
+/* ── 按钮 ── */
+.mc-btn{border:none;border-radius:11px;padding:9px 16px;font-size:13px;font-weight:700;
+  cursor:pointer;transition:filter .15s,opacity .15s;font-family:inherit;}
+.mc-btn:disabled{opacity:.5;cursor:not-allowed;}
+.mc-btn.primary{background:linear-gradient(135deg,var(--primary),var(--sky));color:#fff;}
+.mc-btn.primary:hover{filter:brightness(1.07);}
+.mc-btn.ghost{background:transparent;border:1.5px solid var(--border);color:var(--text);}
+.mc-btn.ghost:hover{border-color:var(--primary);color:var(--primary-d);}
+.mc-btn.teal{background:transparent;border:1.5px solid var(--accent-teal);color:var(--accent-teal);}
+.mc-btn.teal:hover{background:rgba(13,148,136,.08);}
+.mc-btn.danger{background:transparent;border:1.5px solid var(--warn);color:var(--warn);}
+.mc-btn.sm{padding:5px 11px;font-size:12px;border-radius:9px;}
+
+/* ── 表格 ── */
+.mc-table{width:100%;border-collapse:collapse;font-size:13px;}
+.mc-table th{text-align:left;color:var(--muted);font-weight:700;font-size:12px;
+  padding:8px 10px;border-bottom:2px solid var(--border);white-space:nowrap;}
+.mc-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top;}
+.mc-table tr:hover td{background:var(--bg);}
+.mc-table .prob{font-weight:600;}
+
+/* ── 进度条 ── */
+.mc-bar{height:8px;background:var(--bg);border-radius:6px;overflow:hidden;min-width:60px;}
+.mc-bar > i{display:block;height:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--primary),var(--sky));}
+
+/* ── 空状态 ── */
+.mc-empty{text-align:center;padding:48px 16px;color:var(--muted);}
+.mc-empty .big{font-size:40px;margin-bottom:8px;}
+
+/* ── 图表容器 ── */
+.mc-chart{width:100%;overflow-x:auto;}
+.mc-chart svg{display:block;max-width:100%;}
+
+/* ── 筛选工具条 ── */
+.mc-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.mc-toolbar input,.mc-toolbar select{
+  padding:9px 12px;background:var(--bg);border:1px solid var(--border);
+  border-radius:11px;color:var(--text);font-size:13px;font-family:inherit;outline:none;}
+.mc-toolbar input:focus,.mc-toolbar select:focus{border-color:var(--primary);}
+.mc-toolbar input[type=text]{min-width:200px;flex:1;}
+
+/* ── 详情弹窗 ── */
+.mc-mask{position:fixed;inset:0;background:rgba(20,24,35,.5);display:none;
+  align-items:center;justify-content:center;z-index:9998;backdrop-filter:blur(3px);}
+.mc-mask.show{display:flex;}
+.mc-modal{background:var(--card);border-radius:18px;width:min(560px,92vw);max-height:86vh;
+  overflow-y:auto;padding:22px 24px;box-shadow:0 24px 64px rgba(0,0,0,.28);}
+.mc-modal h3{margin:0 0 12px;font-size:18px;}
+.mc-modal .close{float:right;cursor:pointer;color:var(--muted);font-size:20px;border:none;background:none;}
+
+/* ── 通用文字 ── */
+.mc-muted{color:var(--muted);font-size:12px;}
+.mc-b{font-weight:700;color:var(--text);}
+.mc-fl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.mc-list{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.mc-list li{padding:10px 12px;background:var(--bg);border-radius:10px;}
+
+/* 模块内隐藏 account.js 自动注入的浮窗账号条与登录遮罩（账号态由主框架统一管） */
+#accChip{display:none!important;}
+#accOverlay{display:none!important;}

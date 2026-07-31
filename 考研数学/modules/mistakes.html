@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>错题与薄弱</title>
+<script>console.log('📕 mistakes.html v=1 LOADED');</script>
+<script src="../../account.js"></script>
+<script>
+window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)'],['$$','$$']]}, startup:{pageReady:function(){return MathJax.startup.defaultPageReady();}} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  .mis-card{margin-bottom:14px;}
+  .mis-head{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+  .mis-status{margin-left:auto;font-size:12px;font-weight:700;padding:2px 10px;border-radius:9px;}
+  .mis-status.act{background:rgba(245,158,11,.14);color:var(--amber);border:1px solid rgba(245,158,11,.3);}
+  .mis-status.done{background:rgba(13,148,136,.12);color:var(--accent-teal);border:1px solid rgba(13,148,136,.25);}
+  .mis-prob{font-size:15px;font-weight:600;line-height:1.7;white-space:pre-wrap;word-break:break-word;}
+  .mis-img{max-width:280px;max-height:200px;border-radius:12px;border:1px solid var(--border);margin-top:8px;cursor:zoom-in;}
+  .mis-foot{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .mis-streak{font-size:12px;color:var(--muted);}
+  .mis-streak b{color:var(--amber);}
+  .mis-actions{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;}
+  .detail-img{max-width:100%;border-radius:12px;border:1px solid var(--border);margin:10px 0;}
+  .detail-block{background:var(--bg);border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-top:10px;}
+  .detail-block .lab{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+  .detail-block .txt{white-space:pre-wrap;line-height:1.7;word-break:break-word;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="mc-topbar">
+    <div>
+      <h1>📕 错题与薄弱</h1>
+      <div class="sub">攻克追踪 · 连续答对 2 次即移出活跃薄弱</div>
+    </div>
+    <div class="right" id="headStat"></div>
+  </div>
+  <div class="mc-body">
+    <div class="mc-toolbar">
+      <input type="text" id="q" placeholder="搜索题面 / 知识点…">
+      <select id="fBook"><option value="">全部来源</option></select>
+      <select id="fKp"><option value="">全部知识点</option></select>
+      <select id="fReason"><option value="">全部错因</option></select>
+      <select id="fStatus">
+        <option value="">全部状态</option>
+        <option value="攻克中">攻克中</option>
+        <option value="已掌握">已掌握</option>
+      </select>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="mc-mask" id="modalMask">
+  <div class="mc-modal">
+    <button class="close" id="modalClose">✕</button>
+    <h3 id="dTitle">题目详情</h3>
+    <div id="dBody"></div>
+    <div style="display:flex;gap:9px;margin-top:16px;justify-content:flex-end;">
+      <button class="mc-btn ghost sm" id="dNot">还不会</button>
+      <button class="mc-btn primary sm" id="dGot">我会了 ✓</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="../js/storage.js?v=4"></script>
+<script src="../js/stats.js?v=2"></script>
+<script>
+(function () {
+  "use strict";
+  if (window.MathStore && MathStore.migrateIfNeeded) MathStore.migrateIfNeeded();
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  var _tries = 0;
+  function typeset() {
+    if (window.MathJax && MathJax.typesetPromise) {
+      MathJax.typesetPromise().catch(function () {});
+    } else if (_tries++ < 25) {
+      setTimeout(typeset, 200);
+    }
+  }
+  var toastTimer;
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+  function kp(r) { return MathStore.normPoints(r); }
+  function entryOf(r) { return r.from || r.entry || (r.image ? "网页拍题" : "手动"); }
+  function statusCls(s) { return s === "已掌握" ? "done" : "act"; }
+
+  function all() { return MathStore.getMistakes(); }
+
+  function fillFilters() {
+    var data = all();
+    var books = {}, kps = {}, reasons = {};
+    data.forEach(function (r) {
+      if (r.book) books[r.book] = 1;
+      kp(r).forEach(function (k) { if (k) kps[k] = 1; });
+      if (r.reason) reasons[r.reason] = 1;
+    });
+    var fb = document.getElementById("fBook"), fk = document.getElementById("fKp"), fr = document.getElementById("fReason");
+    fb.innerHTML = '<option value="">全部来源</option>' + Object.keys(books).sort().map(function (b) { return '<option>' + esc(b) + '</option>'; }).join("");
+    fk.innerHTML = '<option value="">全部知识点</option>' + Object.keys(kps).sort().map(function (k) { return '<option>' + esc(k) + '</option>'; }).join("");
+    fr.innerHTML = '<option value="">全部错因</option>' + Object.keys(reasons).sort().map(function (x) { return '<option>' + esc(x) + '</option>'; }).join("");
+  }
+
+  function render() {
+    var data = all();
+    var q = document.getElementById("q").value.trim().toLowerCase();
+    var fb = document.getElementById("fBook").value;
+    var fk = document.getElementById("fKp").value;
+    var fr = document.getElementById("fReason").value;
+    var fs = document.getElementById("fStatus").value;
+
+    var list = data.filter(function (r) {
+      if (fb && r.book !== fb) return false;
+      if (fr && (r.reason || "") !== fr) return false;
+      if (fs && (r.status || "攻克中") !== fs) return false;
+      if (fk && kp(r).indexOf(fk) < 0) return false;
+      if (q) {
+        var hay = (r.problem || "") + " " + kp(r).join(" ") + " " + (r.note || "");
+        if (hay.toLowerCase().indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+    // 攻克中在前
+    list.sort(function (a, b) { return (a.status === "已掌握" ? 1 : 0) - (b.status === "已掌握" ? 1 : 0); });
+
+    var active = data.filter(function (r) { return r.status !== "已掌握"; }).length;
+    var mastered = data.length - active;
+    document.getElementById("headStat").innerHTML =
+      "共 <b>" + data.length + "</b> 道 · 攻克中 <b>" + active + "</b> · 已掌握 <b>" + mastered + "</b>";
+
+    var box = document.getElementById("list");
+    if (!list.length) {
+      box.innerHTML = '<div class="mc-empty"><div class="big">🗒️</div>' +
+        (data.length ? "没有符合筛选条件的题" : "还没有收录错题～<br>去「AI 助理」用 📥 上传收录 添加吧") + '</div>';
+      return;
+    }
+    box.innerHTML = list.map(function (r) {
+      var tags = (r.book ? '<span class="mc-tag book">' + esc(r.book) + '</span>' : '') +
+        kp(r).map(function (k) { return '<span class="mc-tag kp">' + esc(k) + '</span>'; }).join("") +
+        (r.reason ? '<span class="mc-tag reason">' + esc(r.reason) + '</span>' : '');
+      var streak = r.resolveStreak || 0;
+      var img = r.image ? '<img class="mis-img" src="' + esc(r.image) + '" data-zoom="1">' : '';
+      return '<div class="mc-card mis-card" data-id="' + esc(r.id) + '">' +
+        '<div class="mis-head">' + tags +
+          '<span class="mis-status ' + statusCls(r.status) + '">' + esc(r.status || "攻克中") + '</span></div>' +
+        '<div class="mis-prob">' + esc(r.problem || "(无题面)") + '</div>' + img +
+        '<div class="mis-foot"><span class="mis-streak">连续答对 <b>' + streak + '</b>/2</span>' +
+          '<div class="mis-actions">' +
+            '<button class="mc-btn ghost sm" data-act="review">重看</button>' +
+            '<button class="mc-btn teal sm" data-act="got">我会了 ✓</button>' +
+            '<button class="mc-btn ghost sm" data-act="notgot">还不会</button>' +
+            '<button class="mc-btn danger sm" data-act="del">删除</button>' +
+          '</div></div></div>';
+    }).join("");
+    typeset();
+  }
+
+  // ── 操作 ──
+  function markGot(id) {
+    var r = MathStore.getById(id); if (!r) return;
+    var streak = (r.resolveStreak || 0) + 1;
+    if (streak >= 2) { MathStore.updateMistake(id, { resolveStreak: streak, status: "已掌握" }); toast("🎉 已掌握！"); }
+    else { MathStore.updateMistake(id, { resolveStreak: streak }); toast("已记录，再连续答对 1 次即可掌握"); }
+    fillFilters(); render();
+  }
+  function markNot(id) { MathStore.updateMistake(id, { resolveStreak: 0 }); render(); }
+  function del(id) {
+    if (confirm("确定删除这道题？删除后不可恢复。")) { MathStore.deleteMistake(id); fillFilters(); render(); toast("已删除"); }
+  }
+
+  // ── 详情弹窗 ──
+  var curId = null;
+  function openDetail(id) {
+    var r = MathStore.getById(id); if (!r) return;
+    curId = id;
+    document.getElementById("dTitle").textContent = r.book ? ("📘 " + r.book) : "题目详情";
+    var img = r.image ? '<img class="detail-img" src="' + esc(r.image) + '">' : '';
+    document.getElementById("dBody").innerHTML =
+      '<div class="mis-prob">' + esc(r.problem || "(无题面)") + '</div>' + img +
+      (r.answer ? '<div class="detail-block"><div class="lab">答案</div><div class="txt">' + esc(r.answer) + '</div></div>' : '') +
+      (r.solution ? '<div class="detail-block"><div class="lab">解析</div><div class="txt">' + esc(r.solution) + '</div></div>' : '') +
+      (r.note ? '<div class="detail-block"><div class="lab">我的备注</div><div class="txt">' + esc(r.note) + '</div></div>' : '') +
+      (kp(r).length ? '<div class="detail-block"><div class="lab">知识点</div><div class="txt">' + kp(r).map(esc).join("、") + '</div></div>' : '');
+    document.getElementById("modalMask").classList.add("show");
+    typeset();
+  }
+  function closeDetail() { document.getElementById("modalMask").classList.remove("show"); curId = null; }
+
+  // ── 事件 ──
+  document.getElementById("list").addEventListener("click", function (e) {
+    var card = e.target.closest(".mis-card"); if (!card) return;
+    var id = card.getAttribute("data-id");
+    var act = e.target.getAttribute("data-act");
+    if (e.target.dataset.zoom) { openDetail(id); return; }
+    if (act === "review") openDetail(id);
+    else if (act === "got") markGot(id);
+    else if (act === "notgot") markNot(id);
+    else if (act === "del") del(id);
+  });
+  document.getElementById("modalClose").onclick = closeDetail;
+  document.getElementById("modalMask").addEventListener("click", function (e) { if (e.target.id === "modalMask") closeDetail(); });
+  document.getElementById("dGot").onclick = function () { if (curId) { markGot(curId); closeDetail(); } };
+  document.getElementById("dNot").onclick = function () { if (curId) { markNot(curId); closeDetail(); } };
+  ["q", "fBook", "fKp", "fReason", "fStatus"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", render);
+    document.getElementById(id).addEventListener("change", render);
+  });
+
+  fillFilters();
+  render();
+  window.addEventListener("load", typeset);
+})();
+</script>
+</body>
+</html>

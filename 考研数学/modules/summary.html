@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>归纳总结</title>
+<script>console.log('📊 summary.html v=1 LOADED');</script>
+<script src="../../account.js"></script>
+<script>
+window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)'],['$$','$$']]}, startup:{pageReady:function(){return MathJax.startup.defaultPageReady();}} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+  .sum-card-link{color:var(--primary-d);font-weight:700;cursor:pointer;font-size:13px;}
+  .weak-item{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .weak-item:last-child{border-bottom:none;}
+  .weak-name{width:130px;flex-shrink:0;font-weight:600;font-size:13px;}
+  .weak-item.top .weak-name{color:var(--warn);}
+  .weak-bar{flex:1;}
+  .weak-meta{width:96px;flex-shrink:0;text-align:right;font-size:12px;color:var(--muted);}
+  .reason-row{display:flex;align-items:center;gap:10px;margin:7px 0;}
+  .reason-name{width:74px;font-size:13px;flex-shrink:0;}
+  .reason-bar{flex:1;}
+  .book-card .bc-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .book-card .bc-name{font-weight:700;font-size:14px;}
+  .book-card .bc-num{font-size:12px;color:var(--muted);}
+  .book-card .bc-pts{font-size:12px;color:var(--primary-d);margin-top:4px;}
+  .adv-box{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(14,165,233,.08));
+    border:1px solid rgba(99,102,241,.22);border-radius:14px;padding:16px 18px;}
+  .adv-box .ttl{font-weight:800;color:var(--primary-d);margin-bottom:8px;font-size:14px;}
+  .adv-box ul{margin:6px 0 10px;padding-left:20px;}
+  .adv-box li{margin:4px 0;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="mc-topbar">
+    <div>
+      <h1>📊 归纳总结</h1>
+      <div class="sub">薄弱榜 · 错因归因 · 复习建议</div>
+    </div>
+    <div class="right"><span id="who"></span> <button class="mc-btn ghost sm" onclick="location.reload()">刷新</button></div>
+  </div>
+  <div class="mc-body" id="body"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="../js/storage.js?v=4"></script>
+<script src="../js/stats.js?v=2"></script>
+<script>
+(function () {
+  "use strict";
+  if (window.MathStore && MathStore.migrateIfNeeded) MathStore.migrateIfNeeded();
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var _t=0;
+  function typeset(){ if(window.MathJax&&MathJax.typesetPromise){MathJax.typesetPromise().catch(function(){});} else if(_t++<25){setTimeout(typeset,200);} }
+  function kp(r){return MathStore.normPoints(r);}
+
+  function bookTopPoints(){
+    var map={};
+    MathStore.getMistakes().forEach(function(r){
+      var b=r.book||"其他"; if(!map[b])map[b]={total:0,pts:{}}; map[b].total++;
+      kp(r).forEach(function(p){if(p)map[b].pts[p]=(map[b].pts[p]||0)+1;});
+    });
+    return Object.keys(map).map(function(b){
+      var top=Object.keys(map[b].pts).sort(function(a,c){return map[b].pts[c]-map[b].pts[a];}).slice(0,3);
+      return {book:b,total:map[b].total,top:top};
+    }).sort(function(a,b){return b.total-a.total;});
+  }
+  function weekItems(){
+    var now=new Date(); var dow=(now.getDay()+6)%7;
+    var mon=new Date(now); mon.setDate(now.getDate()-dow); mon.setHours(0,0,0,0);
+    var ms=mon.getTime();
+    return MathStore.getMistakes().filter(function(r){return (new Date(r.createdAt).getTime())>=ms;});
+  }
+
+  function trendSVG(trend){
+    var W=680,H=210,pl=40,pr=40,pt=16,pb=30,innerW=W-pl-pr,innerH=H-pt-pb,n=trend.length;
+    var maxC=Math.max(1,Math.max.apply(null,trend.map(function(d){return d.count;})));
+    function x(i){return pl+(n<=1?innerW/2:innerW*i/(n-1));}
+    function yC(v){return pt+innerH*(1-v/maxC);}
+    function yM(v){return pt+innerH*(1-v/100);}
+    var grid="";
+    [0,.25,.5,.75,1].forEach(function(f){
+      var y=pt+innerH*f;
+      grid+='<line x1="'+pl+'" y1="'+y+'" x2="'+(W-pr)+'" y2="'+y+'" stroke="#e6e9f0"/>';
+      grid+='<text x="'+(pl-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#7a869a">'+Math.round(maxC*(1-f))+'</text>';
+      grid+='<text x="'+(W-pr+6)+'" y="'+(y+4)+'" text-anchor="start" font-size="10" fill="#7a869a">'+Math.round(100*(1-f))+'%</text>';
+    });
+    var cpts=trend.map(function(d,i){return x(i)+","+yC(d.count);}).join(" ");
+    var mpts=trend.map(function(d,i){return x(i)+","+yM(d.rate);}).join(" ");
+    var dots=""; trend.forEach(function(d,i){dots+='<circle cx="'+x(i)+'" cy="'+yC(d.count)+'" r="2.4" fill="#6366f1"/>';});
+    var xl=""; trend.forEach(function(d,i){if(i%3===0||i===n-1)xl+='<text x="'+x(i)+'" y="'+(H-9)+'" text-anchor="middle" font-size="9" fill="#7a869a">'+d.date.slice(5)+'</text>';});
+    return '<svg viewBox="0 0 '+W+' '+H+'" width="100%">'+grid+
+      '<polyline points="'+mpts+'" fill="none" stroke="#0d9488" stroke-width="2"/>'+
+      '<polyline points="'+cpts+'" fill="none" stroke="#6366f1" stroke-width="2.5"/>'+dots+xl+
+      '<text x="'+pl+'" y="12" font-size="10" fill="#6366f1">■ 收录量</text>'+
+      '<text x="'+(pl+58)+'" y="12" font-size="10" fill="#0d9488">■ 掌握率</text></svg>';
+  }
+
+  function render(){
+    var S=MathStore.getAllStats();
+    var u=(window.getCurrentUser&&getCurrentUser())||"—";
+    document.getElementById("who").textContent=u?("👤 "+u):"";
+
+    // A. 今日概览
+    var t=S.today;
+    var A='<div class="mc-sec"><div class="mc-sec-title">A · 今日概览</div>'+
+      '<div class="mc-grid cols-4">'+
+        stat(t.count,"今日收录")+stat(Object.keys(t.books).length,"来源数")+
+        stat(t.newWeak,"新增薄弱")+stat(t.focusMinutes+" 分","数学时长")+
+      '</div></div>';
+
+    // B. 来源分布
+    var bks=bookTopPoints();
+    var B='<div class="mc-sec"><div class="mc-sec-title">B · 来源分布<span class="hint">各书收录量与薄弱 TOP3 知识点</span></div><div class="mc-grid cols-2">'+
+      (bks.length?bks.map(function(b){
+        return '<div class="mc-card book-card"><div class="bc-top"><span class="bc-name">'+esc(b.book)+'</span>'+
+          '<span class="bc-num">'+b.total+' 道</span></div>'+
+          (b.top.length?'<div class="bc-pts">薄弱：'+b.top.map(esc).join("、")+'</div>':'<div class="bc-pts mc-muted">暂无知识点标注</div>')+
+        '</div>';
+      }).join(""):'<div class="mc-empty"><div class="big">📚</div>还没有收录数据</div>')+
+      '</div></div>';
+
+    // C. 知识点薄弱榜
+    var weak=S.weak;
+    var C='<div class="mc-sec"><div class="mc-sec-title">C · 知识点薄弱榜<span class="hint">按掌握率升序，红字为最薄弱 TOP3</span></div><div class="mc-card">'+
+      (weak.length?weak.map(function(w,i){
+        return '<div class="weak-item'+(i<3?' top':'')+'"><div class="weak-name">'+esc(w.name)+'</div>'+
+          '<div class="weak-bar"><div class="mc-bar"><i style="width:'+w.rate+'%"></i></div></div>'+
+          '<div class="weak-meta">'+w.rate+'% · '+w.total+'道</div></div>';
+      }).join(""):'<div class="mc-empty">暂无知识点</div>')+
+      '</div></div>';
+
+    // D. 错因归因
+    var rs=S.reasons.filter(function(r){return r.count>0;});
+    var tot=rs.reduce(function(s,r){return s+r.count;},0);
+    var D='<div class="mc-sec"><div class="mc-sec-title">D · 错因归因<span class="hint">共 '+tot+' 条标注</span></div><div class="mc-card">'+
+      (rs.length?rs.map(function(r){
+        var pct=tot?Math.round(r.count/tot*100):0;
+        return '<div class="reason-row"><div class="reason-name">'+esc(r.reason)+'</div>'+
+          '<div class="reason-bar"><div class="mc-bar"><i style="width:'+pct+'%"></i></div></div>'+
+          '<div class="weak-meta">'+r.count+' ('+pct+'%)</div></div>';
+      }).join(""):'<div class="mc-empty">尚未标注错因</div>')+
+      '</div></div>';
+
+    // E. 趋势
+    var E='<div class="mc-sec"><div class="mc-sec-title">E · 近 14 天趋势</div><div class="mc-card mc-chart">'+trendSVG(S.trend14)+'</div></div>';
+
+    // F. 智能复习建议
+    var activeWeak=weak.filter(function(w){return w.active>0;}).sort(function(a,b){return b.active-a.active;}).slice(0,5);
+    var wk=weekItems();
+    var reasonCnt={}; wk.forEach(function(r){if(r.reason)reasonCnt[r.reason]=(reasonCnt[r.reason]||0)+1;});
+    var advice='<div class="ttl">💡 智能复习建议</div><ul>';
+    if(activeWeak.length){
+      advice+='<li>明天优先复习：<b>'+activeWeak.map(function(w){return esc(w.name);}).join("、")+'</b>（当前最薄弱）。</li>';
+    } else {
+      advice+='<li>当前没有活跃薄弱点，保持节奏巩固即可 👍</li>';
+    }
+    if((reasonCnt["遗忘"]||0)>0) advice+='<li>近 7 天「遗忘」类错因 '+reasonCnt["遗忘"]+' 次，建议配合记忆曲线滚动复习。</li>';
+    if((reasonCnt["计算错"]||0)>0) advice+='<li>近 7 天「计算错」'+reasonCnt["计算错"]+' 次，做题时放慢一步、注意符号与步骤。</li>';
+    advice+='</ul><button class="mc-btn primary sm" id="goReview">去重看 →</button>';
+    var F='<div class="mc-sec"><div class="mc-sec-title">F · 复习建议</div><div class="adv-box">'+advice+'</div></div>';
+
+    // G. 周总结
+    var wkWeak={}; wk.forEach(function(r){if(r.status!=="已掌握")kp(r).forEach(function(p){if(p)wkWeak[p]=1;});});
+    var G='<div class="mc-sec"><div class="mc-sec-title">G · 本周总结<span class="hint">本周一至今</span></div><div class="mc-grid cols-3">'+
+      stat(wk.length,"本周收录")+stat(wk.filter(function(r){return r.status==="已掌握";}).length,"本周已掌握")+
+      stat(Object.keys(wkWeak).length,"活跃薄弱点")+
+      '</div></div>';
+
+    document.getElementById("body").innerHTML=A+B+C+D+E+F+G;
+    document.getElementById("goReview").onclick=function(){
+      if(window.parent&&window.parent!==window) window.parent.postMessage({type:"navigate",src:"modules/mistakes.html"},"*");
+    };
+    typeset();
+  }
+  function stat(num,lbl){return '<div class="mc-stat"><div class="num">'+num+'</div><div class="lbl">'+esc(lbl)+'</div></div>';}
+
+  render();
+  window.addEventListener("load",typeset);
+})();
+</script>
+</body>
+</html>

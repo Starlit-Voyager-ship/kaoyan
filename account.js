@@ -198,6 +198,9 @@
   function isMainPortal() {
     var path = (location.pathname || "").toLowerCase();
     if (path === "/" || path.endsWith("/index.html") || path.endsWith("/考研学习中心.html") || path.endsWith("/")) return true;
+    // 数学中心（含各子模块）也作为主入口，保证未登录时能弹出登录框
+    if (path.endsWith("/math-center.html")) return true;
+    if (path.indexOf("/考研数学/") >= 0) return true;
     return false;
   }
 
