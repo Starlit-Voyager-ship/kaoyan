@@ -699,6 +699,7 @@ function onSaveEndedSession(){
   const colorMap = loadColorMap();
   colorFor(list[list.length-1].name, colorMap);
   saveColorMap(colorMap);
+  const _focusMin = Math.round(getElapsed() / 60);  /* 在 running 置空前抓取时长 */
   saveRunning(null);
   running = null;
   refreshTimerDisplay();
@@ -706,7 +707,7 @@ function onSaveEndedSession(){
   renderAll();
   toast("已保存到「"+viewDate+"」", "ok");
   /* 学习宠物联动：专注完成 */
-  try { var _sp = (parent.StudyPet || top.StudyPet); if(_sp) _sp.event('focusDone', {min: Math.round(getElapsed()/60)}); } catch(e){}
+  try { var _sp = (parent.StudyPet || top.StudyPet); if(_sp) _sp.event('focusDone', {min: _focusMin}); } catch(e){}
 }
 
 function onDiscardEndedSession(){
