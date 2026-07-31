@@ -445,7 +445,7 @@ function confirmWrong(){
   current.status='unknown'; current.box=0; current.nextReview=now;
   persist(); nextCard();
   /* 学习宠物联动：答错 */
-  try { if(window.StudyPet) StudyPet.event('wordWrong'); } catch(e){}
+  try { var _sp = (parent.StudyPet || parent.parent.StudyPet || top.StudyPet); if(_sp) _sp.event('wordWrong'); } catch(e){}
 }
 function confirmNext(){
   const now = Date.now();
@@ -456,7 +456,7 @@ function confirmNext(){
   current.nextReview = now + INTERVALS[current.box]*DAY;
   persist(); nextCard();
   /* 学习宠物联动：答对 */
-  try { if(window.StudyPet) StudyPet.event('wordCorrect'); } catch(e){}
+  try { var _sp = (parent.StudyPet || parent.parent.StudyPet || top.StudyPet); if(_sp) _sp.event('wordCorrect'); } catch(e){}
 }
 function learned(){
   current.nextReview = Date.now() + INTERVALS[1]*DAY;

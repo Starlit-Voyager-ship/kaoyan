@@ -283,6 +283,8 @@
   var walking = false, dragging = false, target = null;
   var MOVE_INTERVAL = 5 * 60 * 1000;
   var nextMoveAt = Date.now() + MOVE_INTERVAL;
+  var IDLE_CYCLE = 3500; // 空闲时每隔几秒切换一个随机 idle GIF
+  var nextIdleCycleAt = Date.now() + IDLE_CYCLE;
   var M = 12, PW = 130, PH = 150;
   var AUTO_CARE_INTERVAL = 3 * 60 * 1000;
   var nextAutoCareAt = 0;
@@ -360,16 +362,18 @@
     else if (anim === 'idle') filename = gifs.idle[Math.floor(Math.random() * gifs.idle.length)];
     else filename = gifs.main;
     var localUrl = GIF_LOCAL + filename;
+    // 博士熊：静态图直接设
     if (state.species === 'bear') { petImg.src = localUrl; return; }
-    if (gifOk) { petImg.src = localUrl; }
-    else {
-      petImg.src = localUrl;
+    // 爱弥丝：本地 GIF 直接设（我们自己的文件，信任它）
+    petImg.src = localUrl;
+    // 后台静默探测：仅在首次确认 GIF 可用
+    if (!gifOk) {
       var probe = new Image();
       probe.onload = function () { gifOk = true; _gifRetryCount = 0; };
       probe.onerror = function () {
         _gifRetryCount++;
-        if (_gifRetryCount <= 1) { petImg.src = GIF_BASE + filename; gifOk = false; }
-        else { petImg.src = GIF_BASE + gifs.main; }
+        if (_gifRetryCount <= 1) { petImg.src = GIF_BASE + filename; }
+        else { petImg.src = GIF_LOCAL + gifs.main; gifOk = true; }
       };
       probe.src = localUrl;
     }
@@ -634,10 +638,15 @@
     var now = Date.now();
     if (!dragging && state && state.owned) {
       if (now >= nextAutoCareAt) { runAutoCare(); nextAutoCareAt = now + AUTO_CARE_INTERVAL; }
+      // 空闲时自动切换 idle GIF（让宠物看起来"活着"）
+      if (!walking && now >= nextIdleCycleAt && currentAnim === 'idle') {
+        setPetGif('idle');
+        nextIdleCycleAt = now + IDLE_CYCLE;
+      }
       if (walking && target) {
         var dx = target.x - x, dy = target.y - y, dist = Math.hypot(dx, dy);
         if (dist < 4) {
-          walking = false; pet.classList.remove('walking'); setPetGif('idle'); nextMoveAt = now + MOVE_INTERVAL;
+          walking = false; pet.classList.remove('walking'); setPetGif('idle'); nextMoveAt = now + MOVE_INTERVAL; nextIdleCycleAt = now + IDLE_CYCLE;
           if (Math.random() < 0.7) { setPetGif('screen'); showBubble(['💭','♪','✨','🌸','⭐','🚀'][Math.floor(Math.random() * 6)], 1400); setTimeout(function () { if (!walking && !dragging) setPetGif('idle'); }, 2500); }
         } else {
           var ux = dx / dist, uy = dy / dist;
@@ -646,7 +655,7 @@
           pet.style.left = x + 'px'; pet.style.top = y + 'px';
           pet.querySelector('img').style.setProperty('--dir', dir);
         }
-      } else if (now >= nextMoveAt) { walking = true; pet.classList.add('walking'); pickTarget(); setPetGif('move'); }
+      } else if (now >= nextMoveAt) { walking = true; pet.classList.add('walking'); pickTarget(); setPetGif('move'); nextIdleCycleAt = now + IDLE_CYCLE; }
     }
     requestAnimationFrame(walkLoop);
   }
@@ -685,7 +694,13 @@
       };
       pet._dragUp = function () {
         dragging = false;
-        if (moved < 6) { hug(); }
+        if (moved < 6) {
+          // 轻点：拥抱 + 切换动画 + 冒泡
+          hug();
+          setPetGif('idle'); // 拥抱结束后切回随机 idle
+          var taps = ['嘿～', '嗯？', '🌸', '✨', '找我呀？', '～'];
+          showBubble(taps[Math.floor(Math.random() * taps.length)], 1200);
+        }
         else { walking = false; pet.classList.remove('walking'); setPetGif('idle'); }
       };
     });
