@@ -38,6 +38,8 @@
   .clock .clock-time { font-weight: 800; letter-spacing: 1px; margin-left: 4px; }
 
   .head-tools { position: absolute; top: 18px; right: 24px; display: flex; gap: 10px; align-items: center; }
+  /* 账号态统一由顶部「切换账号」按钮管，隐藏 account.js 浮窗账号条 */
+  #accChip{display:none!important;}
   .data-mgr-btn { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 12px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
   .data-mgr-btn:hover { background: rgba(255,255,255,.28); }
 
@@ -86,6 +88,7 @@
     <h1>考研学习中心</h1>
     <div class="subtitle">英语 · 数学 双科并行 · 可交互学习中心</div>
     <div class="head-tools">
+      <button id="btnSwitchAcc" class="data-mgr-btn">👤 切换账号</button>
       <button id="btnDataMgr" class="data-mgr-btn">⚙️ 数据备份</button>
       <div class="clock" id="clock">— 加载中 —</div>
     </div>
@@ -148,6 +151,11 @@
   });
   tickClock();
   setInterval(tickClock, 1000);
+
+  // 顶部「切换账号」按钮 → 调 account.js 登录浮层
+  document.getElementById("btnSwitchAcc").addEventListener("click", function () {
+    if (window.showLogin) window.showLogin();
+  });
 
   // ===== 子 iframe 消息转发（AI 助理 ↔ 数学中心联动） =====
   (function(){

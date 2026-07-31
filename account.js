@@ -295,8 +295,13 @@
     }
     function hideOverlay() {
       overlay.style.display = "none";
-      chip.style.display = "flex";
-      updateChip();
+      if (window !== window.top) {
+        // 嵌入主站 iframe 内：账号由父页面统一管理，不显示浮窗账号条
+        chip.style.display = "none";
+      } else {
+        chip.style.display = "flex";
+        updateChip();
+      }
     }
     function doLogin(nick) {
       if (!setCurrentUser(nick)) { err.textContent = "请输入昵称"; return; }
