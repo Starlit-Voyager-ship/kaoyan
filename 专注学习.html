@@ -606,16 +606,13 @@ function refreshTimerDisplay(){
 
   card.classList.remove("idle");
   card.classList.add("running");
-  state.textContent = running.endAt ? "⏸ 已结束 · 未保存预览" : "🔥 专注中";
+  state.textContent = "🔥 专注中";
   display.textContent = fmtHMS(getElapsed());
-  taskInput.disabled = !!running.endAt;
+  taskInput.disabled = false;
   if(document.activeElement !== taskInput){
     taskInput.value = running.name || "";
   }
-  actions.innerHTML = running.endAt
-    ? `<button class="timer-btn start big" id="btnSave">💾 保存这条记录</button>
-       <button class="timer-btn discard" id="btnDiscard">✕ 放弃</button>`
-    : `<button class="timer-btn stop big" id="btnStop">⏹ 结束专注</button>
+  actions.innerHTML = `<button class="timer-btn stop big" id="btnStop">⏹ 结束专注</button>
        <button class="timer-btn ghost" id="btnCancel">✕ 取消</button>`;
   bindActionButtons();
 }
@@ -661,23 +658,37 @@ function onStopClick(){
   const name = ($("taskNameInput").value || "").trim();
   running.endAt = new Date().toISOString();
   running.name = name || running.name || "未命名专注";
-  // 在结束这一刻冻结分钟数，保存时直接复用，避免依赖保存瞬间 running 状态
+  // 冻结分钟数
   running.minutes = Math.max(0, Math.round((new Date(running.endAt).getTime() - new Date(running.startAt).getTime()) / 60000));
-  saveRunning(running);
-  refreshTimerDisplay();
+  // 方案A：结束即入库，不再有"未保存预览"
+  const list = loadAll();
+  list.push({
+    id: running.id,
+    name: running.name,
+    category: inferCategory(running.name),
+    startAt: running.startAt,
+    endAt: running.endAt,
+    duration: getElapsed(),
+    date: running.date
+  });
+  saveAll(list);
+  const colorMap = loadColorMap();
+  colorFor(list[list.length-1].name, colorMap);
+  saveColorMap(colorMap);
+  const _focusMin = running.minutes;
+  /* 学习宠物联动 */
+  try { var _sp = (parent.StudyPet || top.StudyPet); if(_sp) _sp.event('focusDone', {min: _focusMin}); } catch(e){}
+  saveRunning(null);
+  running = null;
   stopTick();
-  toast(`本次 ${fmtHMS(getElapsed())}，点「保存」入库`, "ok");
+  refreshTimerDisplay();
+  viewDate = todayStr();
+  renderAll();
+  toast("已保存到「"+todayStr()+"」 · 本次 "+fmtHMS(list[list.length-1].duration), "ok");
 }
 
 function onCancelClick(){
   if(!running) return;
-  if(running.endAt){
-    saveRunning(null);
-    running = null;
-    refreshTimerDisplay();
-    toast("已放弃本次记录", "ok");
-    return;
-  }
   if(!confirm("确定取消本次专注？不保存任何记录。")) return;
   saveRunning(null);
   running = null;
@@ -982,6 +993,23 @@ window.addEventListener("beforeunload", () => {
 
 // 启动
 refreshTimerDisplay();
+// 方案A兼容：旧版可能残留"已结束未保存"的running，自动入库清理
+if(running && running.endAt){
+  const list = loadAll();
+  list.push({
+    id: running.id,
+    name: running.name || "未命名专注",
+    category: inferCategory(running.name),
+    startAt: running.startAt,
+    endAt: running.endAt,
+    duration: Math.max(0, Math.round((new Date(running.endAt).getTime() - new Date(running.startAt).getTime()) / 1000)),
+    date: running.date
+  });
+  saveAll(list);
+  saveRunning(null);
+  running = null;
+  refreshTimerDisplay();
+}
 if(running && !running.endAt) startTick();
 renderAll();
 </script>
