@@ -902,6 +902,15 @@
   }
 
   function checkConnection() {
+    var isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '';
+    var hasApiKey = !!(localStorage.getItem('deepseek-api-key') || '');
+    if (!isLocal) {
+      // GitHub Pages / 线上环境：走浏览器直连，不依赖本地代理
+      connDot.style.background = hasApiKey ? '#22c55e' : '#fbbf24';
+      connText.textContent = hasApiKey ? '云端直连' : '未配置 Key';
+      return;
+    }
+    // 本地环境：检测 capture-server 代理
     fetch('/api/health', { method: 'GET' })
       .then(function (r) {
         if (r.ok) {
@@ -911,7 +920,7 @@
       })
       .catch(function () {
         connDot.style.background = '#ef4444';
-        connText.textContent = '未连接';
+        connText.textContent = '未连接（需启动服务）';
       });
   }
 
