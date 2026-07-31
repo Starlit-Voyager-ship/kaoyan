@@ -22,8 +22,8 @@
     margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
     background: linear-gradient(160deg, var(--bg), var(--bg2)); color: var(--text); min-height: 100vh;
   }
-  /* 隐藏 account.js 自动注入的浮窗账号条（账号态由本页面右上角按钮统一管） */
-  #accChip{display:none!important;}
+  /* 隐藏 account.js 自动注入的浮窗账号条（账号态由主站统一管） */
+  #accChip,#accOverlay{display:none!important;}
 
   .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 40px; }
   .page-head {
@@ -92,6 +92,19 @@
       if (ht) ht.style.display = "none";
     }
 
+    /* 强制隐藏 account.js 注入的浮窗账号条（主站已统一管理账号） */
+    function hideAccChip() {
+      var c = document.getElementById("accChip");
+      if (c) c.style.setProperty("display", "none", "important");
+      var o = document.getElementById("accOverlay");
+      if (o) o.style.setProperty("display", "none", "important");
+    }
+    hideAccChip();
+    // account.js 可能延迟注入，用 MutationObserver 兜底
+    if (typeof MutationObserver !== "undefined") {
+      new MutationObserver(hideAccChip).observe(document.body, { childList: true });
+    }
+
     var nav = document.getElementById("nav");
     var tabs = Array.prototype.slice.call(nav.querySelectorAll(".module-tab"));
     var frames = {
@@ -112,8 +125,11 @@
       var src = el.getAttribute("data-src");
       var fid = el.getAttribute("data-frame");
       var f = frames[fid];
-      // 每次切换强制重新加载，保证数据最新（加缓存破坏参数）
-      f.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
+      // 首次访问才加载；已加载过的直接显示（避免白闪）
+      if (!f.dataset.loaded) {
+        f.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
+        f.dataset.loaded = "1";
+      }
       Object.keys(frames).forEach(function (k) { frames[k].classList.remove("active"); });
       f.classList.add("active");
       if (src.indexOf("summary") >= 0) clearBadge();
