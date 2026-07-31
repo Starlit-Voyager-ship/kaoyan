@@ -661,6 +661,8 @@ function onStopClick(){
   const name = ($("taskNameInput").value || "").trim();
   running.endAt = new Date().toISOString();
   running.name = name || running.name || "未命名专注";
+  // 在结束这一刻冻结分钟数，保存时直接复用，避免依赖保存瞬间 running 状态
+  running.minutes = Math.max(0, Math.round((new Date(running.endAt).getTime() - new Date(running.startAt).getTime()) / 60000));
   saveRunning(running);
   refreshTimerDisplay();
   stopTick();
@@ -699,7 +701,8 @@ function onSaveEndedSession(){
   const colorMap = loadColorMap();
   colorFor(list[list.length-1].name, colorMap);
   saveColorMap(colorMap);
-  const _focusMin = Math.round(getElapsed() / 60);  /* 在 running 置空前抓取时长 */
+  const _focusMin = (running.minutes != null) ? running.minutes
+    : Math.max(0, Math.round((new Date(running.endAt).getTime() - new Date(running.startAt).getTime()) / 60000));  /* 优先用冻结值，兜底重算 */
   saveRunning(null);
   running = null;
   refreshTimerDisplay();
