@@ -96,7 +96,6 @@
     <button class="module-tab" data-mod="eng">英语学习中心</button>
     <button class="module-tab" data-mod="math">数学学习中心</button>
     <button class="module-tab" data-mod="report">📊学习日报</button>
-    <button class="module-tab" data-mod="pet">🐾学习宠物</button>
   </div>
 
   <div class="frame-wrap">
@@ -104,7 +103,6 @@
     <iframe id="engFrame" src="考研英语/英语学习中心.html"></iframe>
     <iframe id="mathFrame" src="考研数学/数学学习中心.html"></iframe>
     <iframe id="reportFrame" src="学习日报.html"></iframe>
-    <iframe id="petFrame" src="学习宠物/index.html"></iframe>
   </div>
 
   <div id="dataModal" class="modal-mask">
@@ -144,7 +142,6 @@
     document.getElementById("engFrame").classList.toggle("active", mod === "eng");
     document.getElementById("mathFrame").classList.toggle("active", mod === "math");
     document.getElementById("reportFrame").classList.toggle("active", mod === "report");
-    document.getElementById("petFrame").classList.toggle("active", mod === "pet");
   });
   tickClock();
   setInterval(tickClock, 1000);
@@ -404,6 +401,7 @@
   })();
 </script>
 <script src="./sync-gist.js"></script>
+<script src="./js/pet-widget.js"></script>
 <div class="tip">☁️ 跨设备同步：右下角云朵按钮输入 GitHub Token，按当前登录账号分别上传/下载。每个账号数据独立存放。</div>
 </body>
 </html>
