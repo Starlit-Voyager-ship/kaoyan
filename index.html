@@ -56,7 +56,7 @@
     background: var(--card); border: 1px solid var(--border); border-radius: 16px;
     overflow: hidden; box-shadow: 0 6px 20px rgba(31,39,51,.06); height: 80vh;
   }
-  iframe { width: 100%; height: 100%; border: none; display: none; }
+  iframe { width: 100%; height: 100%; border: none; display: none; background: #f8fafc; }
   iframe.active { display: block; }
 
   .tip { font-size: 13px; color: var(--muted); margin-top: 12px; }
@@ -156,6 +156,24 @@
   document.getElementById("btnSwitchAcc").addEventListener("click", function () {
     if (window.showLogin) window.showLogin();
   });
+
+  // ===== 强制隐藏 account.js 浮窗账号条（由顶部按钮统一管） =====
+  (function(){
+    function killChip(){
+      var c = document.getElementById('accChip');
+      if(c) c.style.setProperty('display','none','important');
+      var o = document.getElementById('accOverlay');
+      if(o && window.getComputedStyle(o).display !== 'none'){
+        // 浮层如果被打开也强制关掉（用户应通过顶部按钮触发）
+        // o.style.setProperty('display','none','important');
+      }
+    }
+    killChip();
+    // account.js 可能延迟注入 DOM，用 Observer 兜底
+    new MutationObserver(killChip).observe(document.body, { childList: true, subtree: true });
+    // account.js 可能用 style.display='flex' 覆盖，定期巡检
+    setInterval(killChip, 1000);
+  })();
 
   // ===== 子 iframe 消息转发（AI 助理 ↔ 数学中心联动） =====
   (function(){
