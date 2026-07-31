@@ -62,8 +62,11 @@
   }
 
   function callVisionDirect(vKey, vBase, vModel, image, prompt) {
-    var url = vBase.replace(/\/+$/, '') + '/chat/completions';
-    console.log('[DEBUG] 直连千问VL:', url);
+    var rawUrl = vBase.replace(/\/+$/, '') + '/chat/completions';
+    // 支持用户配置 CORS 代理（解决 dashscope 等不允许浏览器直连的问题）
+    var corsProxy = uStorage.getItem('vision-cors-proxy');
+    var url = corsProxy ? (corsProxy.replace(/\/+$/, '') + '/' + rawUrl.replace(/^https?:\/\//, '')) : rawUrl;
+    console.log('[DEBUG] 视觉模型请求:', url, '| 代理:', corsProxy || '无(直连)');
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + vKey },
@@ -79,23 +82,31 @@
         max_tokens: 4096
       })
     }).then(function (r) {
-      if (!r.ok) return r.json().then(function (j) { throw new Error((j.error && (j.error.message || j.error)) || ('视觉模型 ' + r.status)); });
+      if (!r.ok) return r.json().then(function (j) {
+        var errMsg = (j.error && (j.error.message || j.error)) || ('HTTP ' + r.status);
+        // CORS 代理模式下，代理可能返回非标准错误格式
+        if (r.status === 0) throw new Error('网络错误或 CORS 代理不可用（' + (corsProxy || '直连') + '），请检查代理地址或本地是否开了 capture-server');
+        throw new Error(errMsg);
+      });
       return r.json();
     }).then(function (j) {
       var out = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
-      if (!out.trim()) throw new Error('视觉模型返回空内容');
+      if (!out.trim()) throw new Error('视觉模型返回空内容（可能 Key 无效或模型名不对）');
       return out;
     }).catch(function (e) {
-      // 直连失败（CORS/网络/空内容）→ 回退本地代理
-      console.log('[DEBUG] 直连千问失败，回退 /api/vision:', e.message);
-      return fetch('/api/vision', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visionBaseUrl: vBase, visionKey: vKey, visionModel: vModel, image: image, prompt: prompt })
-      }).then(function (r) {
-        if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
-        return r.json();
-      }).then(function (j) { if (j.error) throw new Error(j.error); return j.text || ''; });
+      // 直连失败 → 尝试本地代理（仅 localhost 场景有用）
+      if (!corsProxy && window.location.hostname === 'localhost') {
+        console.log('[DEBUG] 直连千问失败，回退 /api/vision:', e.message);
+        return fetch('/api/vision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visionBaseUrl: vBase, visionKey: vKey, visionModel: vModel, image: image, prompt: prompt })
+        }).then(function (r) {
+          if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || r.status); });
+          return r.json();
+        }).then(function (j) { if (j.error) throw new Error(j.error); return j.text || ''; });
+      }
+      throw e;
     });
   }
 
@@ -128,6 +139,7 @@
   var mReason = $('#mReason');
   var mPoints = $('#mPoints');
   var mNote = $('#mNote');
+  var mProblem = $('#mProblem');
   var mAnalyzing = $('#mAnalyzing');
   var modalConfirm = $('#modalConfirm');
   var modalCancel = $('#modalCancel');
@@ -143,6 +155,7 @@
   var visionKeyInput = $('#visionKeyInput');
   var visionBaseUrlInput = $('#visionBaseUrlInput');
   var visionModelInput = $('#visionModelInput');
+  var visionCorsProxyInput = $('#visionCorsProxyInput');
   var keyStatus = $('#keyStatus');
   var keySave = $('#keySave');
   var keyCancel = $('#keyCancel');
@@ -258,6 +271,7 @@
     visionKeyInput.value = uStorage.getItem('vision-api-key') || '';
     visionBaseUrlInput.value = uStorage.getItem('vision-base-url') || VISION_BASE_URL;
     visionModelInput.value = uStorage.getItem('vision-model') || VISION_MODEL;
+    visionCorsProxyInput.value = uStorage.getItem('vision-cors-proxy') || '';
     keyStatus.textContent = existing
       ? '✅ 当前已保存配置，修改后点击保存即可更新'
       : '⚠️ 尚未设置，请填入后保存';
@@ -275,12 +289,14 @@
     var vKey = visionKeyInput.value.trim() || '';
     var vBase = visionBaseUrlInput.value.trim() || VISION_BASE_URL;
     var vMdl = visionModelInput.value.trim() || VISION_MODEL;
+    var vCorsProxy = visionCorsProxyInput.value.trim() || '';
     uStorage.setItem('deepseek-api-key', key);
     uStorage.setItem('deepseek-base-url', base);
     uStorage.setItem('deepseek-model', mdl);
     uStorage.setItem('vision-api-key', vKey);
     uStorage.setItem('vision-base-url', vBase);
     uStorage.setItem('vision-model', vMdl);
+    uStorage.setItem('vision-cors-proxy', vCorsProxy);
     BASE_URL = base; MODEL = mdl; VISION_BASE_URL = vBase; VISION_MODEL = vMdl;
     closeKeyModal();
     showToast('✅ 配置已保存（对话:' + mdl + ' / 视觉:' + vMdl + '）');
@@ -523,6 +539,7 @@
     }
 
     var ocrChain = Promise.resolve();
+    var ocrFailed = false;
     pendingOCR.forEach(function (m) {
       ocrChain = ocrChain.then(function () {
         return ocrImage(m.images[0]).then(function (txt) {
@@ -531,12 +548,32 @@
           updateMsgOcrNote(m);
           saveHistory();
         }).catch(function (e) {
-          m.ocrText = '[图片识别失败：' + e.message + ']';
+          ocrFailed = true;
+          m.ocrText = ''; // 不传错误信息给 AI，避免 AI 生成废话
+          console.warn('[OCR] 图片识别失败:', e.message);
         });
       });
     });
 
     ocrChain.then(function () {
+      // OCR 全部失败时直接提示用户，不浪费 API 调用
+      if (ocrFailed && pendingOCR.length > 0) {
+        var anySuccess = pendingOCR.some(function (m) { return m.ocrText; });
+        if (!anySuccess) {
+          removeTyping();
+          appendAIMessage(
+            '⚠️ **图片识别失败**，无法读取题目内容。\n\n' +
+            '**原因**：视觉模型（千问 VL）调用不通。GitHub Pages 上使用需要配置 CORS 代理。\n\n' +
+            '**解决方法**：\n' +
+            '1. 点击 ⚙️ 设置 → 视觉模型区 → 填写 **CORS 代理地址**（如 `https://corsproxy.io/?url=`）\n' +
+            '2. 确保 **视觉模型 Key** 已填写\n' +
+            '3. 或者：直接用文字输入题目内容（不用图片），我可以正常解答\n\n' +
+            '💡 **本地使用**：如果在本机 `localhost` 打开且开着 capture-server，则不需要配代理。'
+          );
+          state.isStreaming = false; btnSend.disabled = false; btnUpload.disabled = false;
+          return;
+        }
+      }
       // ② 组装纯文本 messages（图片 → OCR 文字）
       var apiMessages = [
         {
@@ -757,8 +794,16 @@
     mReason.value = '';
     mPoints.value = '';
     mNote.value = '';
+    mProblem.value = '';
     mAnalyzing.classList.remove('show');
     modalConfirm.disabled = true;
+    // 自动填入上一题的文字（OCR 结果或用户输入的）
+    var lastQ = state.lastQuestion;
+    if (lastQ) {
+      var txt = lastQ.content || '';
+      if (lastQ.ocrText) txt = txt ? (txt + '\n\n' + lastQ.ocrText) : lastQ.ocrText;
+      if (txt) mProblem.value = txt.trim();
+    }
     modalMask.classList.add('show');
     setTimeout(function () { mBook.focus(); }, 100);
   }
@@ -772,7 +817,8 @@
     var reason = mReason.value;
     var points = mPoints.value.trim();
     var note = mNote.value.trim();
-    var qText = state.lastQuestion ? state.lastQuestion.content : '';
+    // 优先使用用户手动输入/修改的题目文字，其次用原始问题
+    var qText = mProblem.value.trim() || (state.lastQuestion ? state.lastQuestion.content : '');
     var qImg = state.lastQuestion && state.lastQuestion.images ? state.lastQuestion.images[0] : null;
 
     if (!points) analyzeAndSave(book, reason, note, qText, qImg);
