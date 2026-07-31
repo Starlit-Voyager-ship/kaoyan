@@ -19,7 +19,7 @@ window.MathJax = {
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 <style>
   /* iframe 内隐藏 account.js 自动账号条（账号态由主框架统一呈现） */
-  #accChip,#accOverlay{display:none!important;}
+  #accChip{display:none!important;}
   :root{
     --bg:#eef1f6; --bg2:#e3e8f0; --card:#ffffff;
     --text:#1f2733; --muted:#7a869a; --border:#e6e9f0;
@@ -246,8 +246,6 @@ window.MathJax = {
   <div class="modal">
     <h3>📥 收录到题库</h3>
     <div class="modal-sub">本题将存入你的错题本，便于后续复习与归纳</div>
-    <label>题目内容 <small style="color:var(--muted);font-weight:400;">（图片会自动 OCR 识别，也可手动输入/粘贴文字）</small></label>
-    <textarea id="mProblem" placeholder="从图片自动识别或在此输入题目文字..." rows="3"></textarea>
     <label>来源（书籍 / 试卷）</label>
     <select id="mBook">
       <option value="">请选择…</option>
@@ -296,8 +294,6 @@ window.MathJax = {
       <input type="text" id="visionKeyInput" placeholder="sk-...">
       <label>模型名</label>
       <input type="text" id="visionModelInput" placeholder="qwen-vl-max">
-      <label>CORS 代理 <small style="color:var(--muted);font-weight:400;">（线上必填！如 https://your-proxy.com/?url= ，留空则直连）</small></label>
-      <input type="text" id="visionCorsProxyInput" placeholder="https://corsproxy.io/?url=">
     </div>
 
     <div class="modal-hint show" id="keyStatus"></div>

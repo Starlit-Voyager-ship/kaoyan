@@ -22,26 +22,26 @@
     margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
     background: linear-gradient(160deg, var(--bg), var(--bg2)); color: var(--text); min-height: 100vh;
   }
-  /* 隐藏 account.js 自动注入的浮窗账号条（账号态由主站统一管） */
-  #accChip,#accOverlay{display:none!important;}
+  /* 隐藏 account.js 自动注入的浮窗账号条（账号态由本页面右上角按钮统一管） */
+  #accChip{display:none!important;}
 
-  .container { max-width: 1200px; margin: 0 auto; padding: 10px 14px 24px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 40px; }
   .page-head {
     background: linear-gradient(135deg, #6366f1, #0ea5e9);
-    color: #fff; border-radius: 14px; padding: 12px 20px;
-    box-shadow: 0 6px 20px rgba(99,102,241,.2); position: relative;
+    color: #fff; border-radius: 18px; padding: 22px 26px;
+    box-shadow: 0 10px 30px rgba(99,102,241,.25); position: relative;
   }
-  .page-head h1 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
-  .page-head .subtitle { margin-top: 2px; font-size: 12.5px; opacity: .88; }
-  .head-tools { position: absolute; top: 10px; right: 18px; display: flex; gap: 8px; align-items: center; }
+  .page-head h1 { margin: 0; font-size: 27px; letter-spacing: 1px; }
+  .page-head .subtitle { margin-top: 6px; font-size: 14px; opacity: .92; }
+  .head-tools { position: absolute; top: 18px; right: 24px; display: flex; gap: 10px; align-items: center; }
   .acc-btn { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 12px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
   .acc-btn:hover { background: rgba(255,255,255,.28); }
 
-  .module-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .module-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
   .module-tab {
     border: 1px solid var(--border); background: var(--card); color: var(--text);
-    padding: 7px 18px; border-radius: 12px; cursor: pointer; font-size: 14.5px; font-weight: 700;
-    transition: all .15s; box-shadow: 0 1px 4px rgba(31,39,51,.04); position: relative;
+    padding: 11px 26px; border-radius: 14px; cursor: pointer; font-size: 16px; font-weight: 700;
+    transition: all .15s; box-shadow: 0 2px 8px rgba(31,39,51,.05); position: relative;
   }
   .module-tab:hover { border-color: var(--primary); transform: translateY(-1px); }
   .module-tab.active { background: linear-gradient(135deg, #6366f1, #0ea5e9); color: #fff; border-color: transparent; }
@@ -50,9 +50,9 @@
 
   .frame-wrap {
     background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-    overflow: hidden; box-shadow: 0 4px 14px rgba(31,39,51,.05); height: 82vh;
+    overflow: hidden; box-shadow: 0 6px 20px rgba(31,39,51,.06); height: 78vh;
   }
-  iframe { width: 100%; height: 100%; border: none; display: none; background: #fff; }
+  iframe { width: 100%; height: 100%; border: none; display: none; }
   iframe.active { display: block; }
 
   @media (max-width: 640px) {
@@ -86,25 +86,6 @@
 
 <script>
   (function () {
-    /* 若嵌入主站 iframe，隐藏自身账号按钮（跟随主站 #accChip 统一管理） */
-    if (window !== window.top) {
-      var ht = document.querySelector(".head-tools");
-      if (ht) ht.style.display = "none";
-    }
-
-    /* 强制隐藏 account.js 注入的浮窗账号条（主站已统一管理账号） */
-    function hideAccChip() {
-      var c = document.getElementById("accChip");
-      if (c) c.style.setProperty("display", "none", "important");
-      var o = document.getElementById("accOverlay");
-      if (o) o.style.setProperty("display", "none", "important");
-    }
-    hideAccChip();
-    // account.js 可能延迟注入，用 MutationObserver 兜底
-    if (typeof MutationObserver !== "undefined") {
-      new MutationObserver(hideAccChip).observe(document.body, { childList: true });
-    }
-
     var nav = document.getElementById("nav");
     var tabs = Array.prototype.slice.call(nav.querySelectorAll(".module-tab"));
     var frames = {
@@ -125,11 +106,8 @@
       var src = el.getAttribute("data-src");
       var fid = el.getAttribute("data-frame");
       var f = frames[fid];
-      // 首次访问才加载；已加载过的直接显示（避免白闪）
-      if (!f.dataset.loaded) {
-        f.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
-        f.dataset.loaded = "1";
-      }
+      // 每次切换强制重新加载，保证数据最新（加缓存破坏参数）
+      f.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
       Object.keys(frames).forEach(function (k) { frames[k].classList.remove("active"); });
       f.classList.add("active");
       if (src.indexOf("summary") >= 0) clearBadge();

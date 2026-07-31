@@ -38,8 +38,6 @@
   .clock .clock-time { font-weight: 800; letter-spacing: 1px; margin-left: 4px; }
 
   .head-tools { position: absolute; top: 18px; right: 24px; display: flex; gap: 10px; align-items: center; }
-  /* 账号态统一由顶部「切换账号」按钮管，隐藏 account.js 浮窗账号条 */
-  #accChip{display:none!important;}
   .data-mgr-btn { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 12px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
   .data-mgr-btn:hover { background: rgba(255,255,255,.28); }
 
@@ -56,7 +54,7 @@
     background: var(--card); border: 1px solid var(--border); border-radius: 16px;
     overflow: hidden; box-shadow: 0 6px 20px rgba(31,39,51,.06); height: 80vh;
   }
-  iframe { width: 100%; height: 100%; border: none; display: none; background: #f8fafc; }
+  iframe { width: 100%; height: 100%; border: none; display: none; }
   iframe.active { display: block; }
 
   .tip { font-size: 13px; color: var(--muted); margin-top: 12px; }
@@ -88,7 +86,6 @@
     <h1>考研学习中心</h1>
     <div class="subtitle">英语 · 数学 双科并行 · 可交互学习中心</div>
     <div class="head-tools">
-      <button id="btnSwitchAcc" class="data-mgr-btn">👤 切换账号</button>
       <button id="btnDataMgr" class="data-mgr-btn">⚙️ 数据备份</button>
       <div class="clock" id="clock">— 加载中 —</div>
     </div>
@@ -97,16 +94,14 @@
   <div class="module-tabs" id="moduleTabs">
     <button class="module-tab active" data-mod="focus">🎯 专注学习</button>
     <button class="module-tab" data-mod="eng">英语学习中心</button>
-    <button class="module-tab" data-mod="math">📐 数学中心</button>
-    <button class="module-tab" data-mod="ai">💬 AI 助理</button>
+    <button class="module-tab" data-mod="math">数学学习中心</button>
     <button class="module-tab" data-mod="report">📊学习日报</button>
   </div>
 
   <div class="frame-wrap">
     <iframe id="focusFrame" class="active" src="专注学习.html"></iframe>
     <iframe id="engFrame" src="考研英语/英语学习中心.html"></iframe>
-    <iframe id="mathFrame" src="考研数学/math-center.html"></iframe>
-    <iframe id="aiFrame" src="考研数学/math.html"></iframe>
+    <iframe id="mathFrame" src="考研数学/math.html"></iframe>
     <iframe id="reportFrame" src="学习日报.html"></iframe>
   </div>
 
@@ -146,54 +141,10 @@
     document.getElementById("focusFrame").classList.toggle("active", mod === "focus");
     document.getElementById("engFrame").classList.toggle("active", mod === "eng");
     document.getElementById("mathFrame").classList.toggle("active", mod === "math");
-    document.getElementById("aiFrame").classList.toggle("active", mod === "ai");
     document.getElementById("reportFrame").classList.toggle("active", mod === "report");
   });
   tickClock();
   setInterval(tickClock, 1000);
-
-  // 顶部「切换账号」按钮 → 调 account.js 登录浮层
-  document.getElementById("btnSwitchAcc").addEventListener("click", function () {
-    if (window.showLogin) window.showLogin();
-  });
-
-  // ===== 强制隐藏 account.js 浮窗账号条（由顶部按钮统一管） =====
-  (function(){
-    function killChip(){
-      var c = document.getElementById('accChip');
-      if(c) c.style.setProperty('display','none','important');
-      var o = document.getElementById('accOverlay');
-      if(o && window.getComputedStyle(o).display !== 'none'){
-        // 浮层如果被打开也强制关掉（用户应通过顶部按钮触发）
-        // o.style.setProperty('display','none','important');
-      }
-    }
-    killChip();
-    // account.js 可能延迟注入 DOM，用 Observer 兜底
-    new MutationObserver(killChip).observe(document.body, { childList: true, subtree: true });
-    // account.js 可能用 style.display='flex' 覆盖，定期巡检
-    setInterval(killChip, 1000);
-  })();
-
-  // ===== 子 iframe 消息转发（AI 助理 ↔ 数学中心联动） =====
-  (function(){
-    var mathFrame = document.getElementById("mathFrame");
-    window.addEventListener("message", function(e){
-      if (!e.data || !e.data.type) return;
-      // AI 助理收录后通知数学中心点亮「归纳总结」徽标
-      if (e.data.type === "newMistake") {
-        try { mathFrame.contentWindow.postMessage({ type: "newMistake" }, "*"); } catch(e2){}
-      }
-      // 子模块请求跳转（如归纳总结→去重看）
-      if (e.data.type === "navigate" && e.data.src) {
-        // 切到数学中心 tab
-        var mathTab = document.querySelector('.module-tab[data-mod="math"]');
-        if (mathTab) { mathTab.click(); }
-        // 转发给数学中心内部处理
-        try { setTimeout(function(){ mathFrame.contentWindow.postMessage(e.data, "*"); }, 300); } catch(e3){}
-      }
-    });
-  })();
 
   // ===== 数据备份与恢复（仅当前登录账号） =====
   (function(){

@@ -108,9 +108,9 @@ window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)'],['$$','$$']]}, start
     // A. 今日概览
     var t=S.today;
     var A='<div class="mc-sec"><div class="mc-sec-title">A · 今日概览</div>'+
-      '<div class="mc-grid cols-3">'+
+      '<div class="mc-grid cols-4">'+
         stat(t.count,"今日收录")+stat(Object.keys(t.books).length,"来源数")+
-        stat(t.newWeak,"新增薄弱")+
+        stat(t.newWeak,"新增薄弱")+stat(t.focusMinutes+" 分","数学时长")+
       '</div></div>';
 
     // B. 来源分布
