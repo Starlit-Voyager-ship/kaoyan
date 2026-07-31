@@ -86,6 +86,12 @@
 
 <script>
   (function () {
+    /* 若嵌入主站 iframe，隐藏自身账号按钮（跟随主站 #accChip 统一管理） */
+    if (window !== window.top) {
+      var ht = document.querySelector(".head-tools");
+      if (ht) ht.style.display = "none";
+    }
+
     var nav = document.getElementById("nav");
     var tabs = Array.prototype.slice.call(nav.querySelectorAll(".module-tab"));
     var frames = {

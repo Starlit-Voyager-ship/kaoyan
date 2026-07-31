@@ -94,14 +94,16 @@
   <div class="module-tabs" id="moduleTabs">
     <button class="module-tab active" data-mod="focus">🎯 专注学习</button>
     <button class="module-tab" data-mod="eng">英语学习中心</button>
-    <button class="module-tab" data-mod="math">数学学习中心</button>
+    <button class="module-tab" data-mod="math">📐 数学中心</button>
+    <button class="module-tab" data-mod="ai">💬 AI 助理</button>
     <button class="module-tab" data-mod="report">📊学习日报</button>
   </div>
 
   <div class="frame-wrap">
     <iframe id="focusFrame" class="active" src="专注学习.html"></iframe>
     <iframe id="engFrame" src="考研英语/英语学习中心.html"></iframe>
-    <iframe id="mathFrame" src="考研数学/math.html"></iframe>
+    <iframe id="mathFrame" src="考研数学/math-center.html"></iframe>
+    <iframe id="aiFrame" src="考研数学/math.html"></iframe>
     <iframe id="reportFrame" src="学习日报.html"></iframe>
   </div>
 
@@ -141,10 +143,31 @@
     document.getElementById("focusFrame").classList.toggle("active", mod === "focus");
     document.getElementById("engFrame").classList.toggle("active", mod === "eng");
     document.getElementById("mathFrame").classList.toggle("active", mod === "math");
+    document.getElementById("aiFrame").classList.toggle("active", mod === "ai");
     document.getElementById("reportFrame").classList.toggle("active", mod === "report");
   });
   tickClock();
   setInterval(tickClock, 1000);
+
+  // ===== 子 iframe 消息转发（AI 助理 ↔ 数学中心联动） =====
+  (function(){
+    var mathFrame = document.getElementById("mathFrame");
+    window.addEventListener("message", function(e){
+      if (!e.data || !e.data.type) return;
+      // AI 助理收录后通知数学中心点亮「归纳总结」徽标
+      if (e.data.type === "newMistake") {
+        try { mathFrame.contentWindow.postMessage({ type: "newMistake" }, "*"); } catch(e2){}
+      }
+      // 子模块请求跳转（如归纳总结→去重看）
+      if (e.data.type === "navigate" && e.data.src) {
+        // 切到数学中心 tab
+        var mathTab = document.querySelector('.module-tab[data-mod="math"]');
+        if (mathTab) { mathTab.click(); }
+        // 转发给数学中心内部处理
+        try { setTimeout(function(){ mathFrame.contentWindow.postMessage(e.data, "*"); }, 300); } catch(e3){}
+      }
+    });
+  })();
 
   // ===== 数据备份与恢复（仅当前登录账号） =====
   (function(){
