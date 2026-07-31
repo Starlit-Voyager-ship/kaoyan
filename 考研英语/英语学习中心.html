@@ -3001,6 +3001,8 @@ function submitQuiz() {
   if (rsResultBtn) rsResultBtn.style.display = currentMode === "random30" ? "inline-flex" : "none";
   updateProgress();
   if (dirHandle) saveVocabToDisk().catch(e => console.warn("写回词库失败:", e));
+  /* 学习宠物联动：单词测试批改 */
+  try { var _sp = (parent.StudyPet || top.StudyPet); if(_sp) { var gc = currentList.filter(o => roundResults[o.word] === 'green').length; if(gc > 0) _sp.event('wordCorrect', {count: gc}); } } catch(e){}
 }
 
 /* 据本轮 roundResults 重算三色统计 + 环形 */

@@ -573,6 +573,7 @@
     if (r.moodChange) clampStat('mood', r.moodChange);
     addExp(type === 'milestone' ? 15 : (type === 'focusDone' ? 10 : 3));
     if (type === 'focusDone' && data && data.min) earn('focus', data.min);
+    if (type === 'wordCorrect') earn('word', (data && data.count) || 1);
     save(); renderAll();
   }
 
