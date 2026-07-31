@@ -7,138 +7,132 @@
 <!-- 账号隔离 + 登录（提供 window.uStorage / getCurrentUser / showLogin） -->
 <script src="../account.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{height:100%;}
-  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
-    background:#eef1f6;color:#1f2733;font-size:14px;display:flex;overflow:hidden;}
-  /* 隐藏 account.js 自动注入的浮窗账号条（账号态由本框架左侧统一呈现） */
+  :root {
+    --bg: #eef1f6;
+    --bg2: #e3e8f0;
+    --card: #ffffff;
+    --text: #1f2733;
+    --muted: #7a869a;
+    --border: #e6e9f0;
+    --primary: #6366f1;
+    --primary-d: #4f46e5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(160deg, var(--bg), var(--bg2)); color: var(--text); min-height: 100vh;
+  }
+  /* 隐藏 account.js 自动注入的浮窗账号条（账号态由本页面右上角按钮统一管） */
   #accChip{display:none!important;}
 
-  .sidebar{width:218px;flex-shrink:0;height:100vh;background:#fff;
-    border-right:1px solid #e6e9f0;display:flex;flex-direction:column;
-    box-shadow:2px 0 16px rgba(31,39,51,.04);z-index:5;}
-  .brand{padding:20px 20px 14px;background:linear-gradient(135deg,#6366f1,#0ea5e9);
-    color:#fff;}
-  .brand .logo{font-size:22px;font-weight:800;letter-spacing:.5px;}
-  .brand .logo span{opacity:.85;font-weight:600;font-size:13px;display:block;margin-top:2px;}
-  .nav{padding:12px 10px;display:flex;flex-direction:column;gap:4px;flex:1;overflow-y:auto;}
-  .nav-item{display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:12px;
-    cursor:pointer;color:#3a4252;font-weight:600;font-size:14px;transition:all .15s;border:1px solid transparent;}
-  .nav-item:hover{background:#f3f4f8;}
-  .nav-item.active{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(14,165,233,.12));
-    color:#4f46e5;border-color:rgba(99,102,241,.25);}
-  .nav-item .ic{font-size:18px;width:22px;text-align:center;}
-  .nav-item .badge{margin-left:auto;font-size:11px;font-weight:700;color:#fff;background:#dc2626;
-    border-radius:9px;padding:1px 7px;display:none;}
-  .nav-item .badge.show{display:inline-block;}
-  .acc{flex-shrink:0;padding:14px 16px;border-top:1px solid #e6e9f0;}
-  .acc .who{font-size:12px;color:#7a869a;margin-bottom:8px;}
-  .acc .who b{color:#1f2733;font-size:14px;}
-  .acc button{width:100%;padding:8px;border-radius:10px;border:1px solid #e6e9f0;
-    background:#fff;color:#4f46e5;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px;}
-  .acc button:hover{border-color:#6366f1;background:#f5f5ff;}
+  .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 40px; }
+  .page-head {
+    background: linear-gradient(135deg, #6366f1, #0ea5e9);
+    color: #fff; border-radius: 18px; padding: 22px 26px;
+    box-shadow: 0 10px 30px rgba(99,102,241,.25); position: relative;
+  }
+  .page-head h1 { margin: 0; font-size: 27px; letter-spacing: 1px; }
+  .page-head .subtitle { margin-top: 6px; font-size: 14px; opacity: .92; }
+  .head-tools { position: absolute; top: 18px; right: 24px; display: flex; gap: 10px; align-items: center; }
+  .acc-btn { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 12px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .acc-btn:hover { background: rgba(255,255,255,.28); }
 
-  .main{flex:1;height:100vh;display:flex;flex-direction:column;min-width:0;}
-  .topbar{height:50px;flex-shrink:0;display:flex;align-items:center;gap:12px;
-    padding:0 22px;background:#fff;border-bottom:1px solid #e6e9f0;}
-  .topbar .crumb{font-size:15px;font-weight:800;color:#1f2733;}
-  .topbar .crumb small{color:#7a869a;font-weight:500;margin-left:8px;font-size:12px;}
-  #mcFrame{flex:1;width:100%;border:none;background:#eef1f6;}
-  iframe{display:block;}
+  .module-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
+  .module-tab {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    padding: 11px 26px; border-radius: 14px; cursor: pointer; font-size: 16px; font-weight: 700;
+    transition: all .15s; box-shadow: 0 2px 8px rgba(31,39,51,.05); position: relative;
+  }
+  .module-tab:hover { border-color: var(--primary); transform: translateY(-1px); }
+  .module-tab.active { background: linear-gradient(135deg, #6366f1, #0ea5e9); color: #fff; border-color: transparent; }
+  .module-tab .badge { position: absolute; top: -7px; right: -7px; font-size: 11px; font-weight: 700; color: #fff; background: #dc2626; border-radius: 9px; padding: 1px 6px; display: none; }
+  .module-tab .badge.show { display: inline-block; }
+
+  .frame-wrap {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; box-shadow: 0 6px 20px rgba(31,39,51,.06); height: 78vh;
+  }
+  iframe { width: 100%; height: 100%; border: none; display: none; }
+  iframe.active { display: block; }
+
+  @media (max-width: 640px) {
+    .head-tools { position: static; margin-top: 10px; display: flex; }
+    .frame-wrap { height: 86vh; }
+  }
 </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="logo">📐 数学中心<span>考研数学二 · 学习平台</span></div>
+<div class="container">
+  <div class="page-head">
+    <h1>📐 数学中心</h1>
+    <div class="subtitle">考研数学二 · 学习平台</div>
+    <div class="head-tools">
+      <button id="switchAcc" class="acc-btn">切换 / 登录账号</button>
     </div>
-    <nav class="nav" id="nav">
-      <div class="nav-item active" data-src="modules/mistakes.html">
-        <span class="ic">📕</span><span>错题与薄弱</span>
-      </div>
-      <div class="nav-item" data-src="modules/summary.html">
-        <span class="ic">📊</span><span>归纳总结</span>
-        <span class="badge" id="badgeSummary">!</span>
-      </div>
-      <div class="nav-item" data-src="modules/bank.html">
-        <span class="ic">📚</span><span>题集</span>
-      </div>
-    </nav>
-    <div class="acc">
-      <div class="who">当前账号：<b id="accName">—</b></div>
-      <button id="switchAcc">切换 / 登录账号</button>
-    </div>
-  </aside>
-
-  <div class="main">
-    <div class="topbar">
-      <div class="crumb" id="crumb">错题与薄弱<small>攻克追踪 · 连对消除</small></div>
-    </div>
-    <iframe id="mcFrame" src="modules/mistakes.html" title="模块"></iframe>
   </div>
+
+  <div class="module-tabs" id="nav">
+    <button class="module-tab active" data-src="modules/mistakes.html" data-frame="f0">📕 错题与薄弱</button>
+    <button class="module-tab" data-src="modules/summary.html" data-frame="f1">📊 归纳总结<span class="badge" id="badgeSummary">!</span></button>
+    <button class="module-tab" data-src="modules/bank.html" data-frame="f2">📚 题集</button>
+  </div>
+
+  <div class="frame-wrap">
+    <iframe id="f0" class="active" src="modules/mistakes.html"></iframe>
+    <iframe id="f1" src="modules/summary.html"></iframe>
+    <iframe id="f2" src="modules/bank.html"></iframe>
+  </div>
+</div>
 
 <script>
   (function () {
-    var titles = {
-      "modules/mistakes.html": ["错题与薄弱", "攻克追踪 · 连对消除"],
-      "modules/summary.html": ["归纳总结", "薄弱榜 · 错因归因 · 复习建议"],
-      "modules/bank.html": ["题集", "全部收录题 · 检索"]
-    };
-    var frame = document.getElementById("mcFrame");
-    var crumb = document.getElementById("crumb");
     var nav = document.getElementById("nav");
+    var tabs = Array.prototype.slice.call(nav.querySelectorAll(".module-tab"));
+    var frames = {
+      f0: document.getElementById("f0"),
+      f1: document.getElementById("f1"),
+      f2: document.getElementById("f2")
+    };
 
-    function refreshAcc() {
-      var u = (window.getCurrentUser && window.getCurrentUser()) || "—";
-      document.getElementById("accName").textContent = u;
+    function clearBadge() {
+      var b = document.getElementById("badgeSummary");
+      if (b) b.classList.remove("show");
     }
-    refreshAcc();
+    window.clearSummaryBadge = clearBadge;
 
-    function selectItem(el) {
-      Array.prototype.forEach.call(nav.querySelectorAll(".nav-item"), function (n) { n.classList.remove("active"); });
+    function selectTab(el) {
+      tabs.forEach(function (t) { t.classList.remove("active"); });
       el.classList.add("active");
       var src = el.getAttribute("data-src");
-      frame.src = src;
-      var t = titles[src];
-      crumb.innerHTML = t ? (t[0] + "<small>" + t[1] + "</small>") : src;
-      if (src === "modules/summary.html") window.clearSummaryBadge();
+      var fid = el.getAttribute("data-frame");
+      var f = frames[fid];
+      // 每次切换强制重新加载，保证数据最新（加缓存破坏参数）
+      f.src = src + (src.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
+      Object.keys(frames).forEach(function (k) { frames[k].classList.remove("active"); });
+      f.classList.add("active");
+      if (src.indexOf("summary") >= 0) clearBadge();
     }
-    // 供子模块 postMessage({type:"navigate",src:"..."}) 调用
-    function selectBySrc(src) {
-      var el = nav.querySelector('.nav-item[data-src="' + src + '"]');
-      if (el) selectItem(el);
-    }
-    window.mcSelect = selectBySrc;
 
     nav.addEventListener("click", function (e) {
-      var item = e.target.closest(".nav-item");
-      if (item) selectItem(item);
+      var item = e.target.closest(".module-tab");
+      if (item) selectTab(item);
     });
 
     document.getElementById("switchAcc").addEventListener("click", function () {
       if (window.showLogin) window.showLogin();
     });
 
-    // 账号在 account.js 浮层切换后会触发整页 reload，无需手动同步；
-    // 监听 storage 事件（其他标签页改账号时）同步左侧显示
-    window.addEventListener("storage", function (e) {
-      if (e.key && e.key.indexOf("kaoyan-active-user") >= 0) refreshAcc();
-    });
-
     // 子模块通信：navigate 跳转、newMistake 点亮徽标
     window.addEventListener("message", function (e) {
       if (!e.data) return;
       if (e.data.type === "navigate") {
-        if (e.data.src) selectBySrc(e.data.src);
+        var el = nav.querySelector('.module-tab[data-src="' + e.data.src + '"]');
+        if (el) selectTab(el);
       } else if (e.data.type === "newMistake") {
         var b = document.getElementById("badgeSummary");
         if (b) b.classList.add("show");
       }
     });
-    window.clearSummaryBadge = function () {
-      var b = document.getElementById("badgeSummary");
-      if (b) b.classList.remove("show");
-    };
   })();
 </script>
 </body>
