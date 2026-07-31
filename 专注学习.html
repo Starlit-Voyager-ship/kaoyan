@@ -705,6 +705,8 @@ function onSaveEndedSession(){
   viewDate = todayStr();
   renderAll();
   toast("已保存到「"+viewDate+"」", "ok");
+  /* 学习宠物联动：专注完成 */
+  try { if(window.StudyPet) StudyPet.event('focusDone', {min: Math.round(getElapsed()/60)}); } catch(e){}
 }
 
 function onDiscardEndedSession(){
